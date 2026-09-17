@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"log"
+	"net"
 	"net/http"
 	"sync"
 	"time"
@@ -17,11 +18,21 @@ type Message struct {
 	Data any    `json:"-"`
 }
 
+// InboundMessage represents a message received from a connected client.
+type InboundMessage struct {
+	Type     string `json:"type"`
+	ID       string `json:"id,omitempty"`
+	Name     string `json:"name,omitempty"`
+	Platform string `json:"platform,omitempty"`
+}
+
 // Hub manages all WebSocket client connections.
 type Hub struct {
-	mu      sync.RWMutex
-	clients map[*Client]struct{}
-	logger  *log.Logger
+	mu                 sync.RWMutex
+	clients            map[*Client]struct{}
+	logger             *log.Logger
+	onClientRegister   func(id, name, platform, ip string)
+	onClientDisconnect func(id string)
 }
 
 // NewHub creates a new WebSocket hub.
@@ -30,6 +41,14 @@ func NewHub(logger *log.Logger) *Hub {
 		clients: make(map[*Client]struct{}),
 		logger:  logger,
 	}
+}
+
+// SetClientHooks sets callbacks for client registration and disconnect.
+func (h *Hub) SetClientHooks(onRegister func(id, name, platform, ip string), onDisconnect func(id string)) {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	h.onClientRegister = onRegister
+	h.onClientDisconnect = onDisconnect
 }
 
 // HandleWS is the HTTP handler for WebSocket upgrade.
@@ -42,9 +61,15 @@ func (h *Hub) HandleWS(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	remoteIP := r.RemoteAddr
+	if host, _, err := net.SplitHostPort(remoteIP); err == nil {
+		remoteIP = host
+	}
+
 	client := &Client{
 		hub:  h,
 		conn: conn,
+		ip:   remoteIP,
 	}
 
 	h.register(client)
@@ -101,25 +126,59 @@ func (h *Hub) register(c *Client) {
 func (h *Hub) unregister(c *Client) {
 	h.mu.Lock()
 	delete(h.clients, c)
+	deviceID := c.deviceID
+	disconnectHook := h.onClientDisconnect
 	h.mu.Unlock()
+
 	c.conn.Close(ws.StatusNormalClosure, "")
+
+	if deviceID != "" && disconnectHook != nil {
+		disconnectHook(deviceID)
+	}
+}
+
+func (h *Hub) handleMessage(c *Client, msg InboundMessage) {
+	switch msg.Type {
+	case "register", "client_hello":
+		if msg.ID != "" {
+			c.deviceID = msg.ID
+			h.mu.RLock()
+			registerHook := h.onClientRegister
+			h.mu.RUnlock()
+
+			if registerHook != nil {
+				name := msg.Name
+				if name == "" {
+					name = "Web Client"
+				}
+				registerHook(msg.ID, name, msg.Platform, c.ip)
+			}
+		}
+	case "ping":
+		c.send([]byte(`{"type":"pong"}`))
+	}
 }
 
 // Client represents a single WebSocket connection.
 type Client struct {
-	hub  *Hub
-	conn *ws.Conn
-	mu   sync.Mutex
+	hub      *Hub
+	conn     *ws.Conn
+	deviceID string
+	ip       string
+	mu       sync.Mutex
 }
 
 func (c *Client) readPump(ctx context.Context) {
 	for {
-		_, _, err := c.conn.Read(ctx)
+		_, data, err := c.conn.Read(ctx)
 		if err != nil {
 			return
 		}
-		// We mainly use WebSocket for server-to-client push.
-		// Client messages are handled via REST API.
+
+		var msg InboundMessage
+		if err := json.Unmarshal(data, &msg); err == nil {
+			c.hub.handleMessage(c, msg)
+		}
 	}
 }
 

@@ -9,11 +9,17 @@ const LANX = {
     wsReconnectDelay: 1000,
     deviceInfo: null,
     settings: null,
+    clientId: null,
+    clientName: null,
+    platform: 'desktop',
 
     /** Initialize the application */
     async init() {
         // Load device info
         await this.loadDeviceInfo();
+
+        // Initialize client identity
+        this.initClientIdentity();
 
         // Load settings & apply theme
         await this.loadSettings();
@@ -31,6 +37,45 @@ const LANX = {
         if (typeof Devices !== 'undefined') Devices.init();
         if (typeof Transfer !== 'undefined') Transfer.init();
         if (typeof Clipboard !== 'undefined') Clipboard.init();
+    },
+
+    initClientIdentity() {
+        let id = localStorage.getItem('lanx_client_id');
+        if (!id) {
+            id = 'dev_' + Math.random().toString(36).substring(2, 10) + Date.now().toString(36);
+            localStorage.setItem('lanx_client_id', id);
+        }
+        this.clientId = id;
+
+        let name = localStorage.getItem('lanx_client_name');
+        if (!name) {
+            const ua = navigator.userAgent;
+            if (/iPhone/i.test(ua)) {
+                name = 'iPhone';
+                this.platform = 'mobile';
+            } else if (/iPad/i.test(ua)) {
+                name = 'iPad';
+                this.platform = 'tablet';
+            } else if (/Android/i.test(ua)) {
+                name = /Mobile/i.test(ua) ? 'Android Phone' : 'Android Tablet';
+                this.platform = 'mobile';
+            } else if (/Macintosh|Mac OS X/i.test(ua)) {
+                name = 'Mac';
+                this.platform = 'desktop';
+            } else if (/Windows/i.test(ua)) {
+                name = 'Windows PC';
+                this.platform = 'desktop';
+            } else {
+                name = 'Browser Client';
+                this.platform = 'browser';
+            }
+            localStorage.setItem('lanx_client_name', name);
+        } else {
+            if (/iPhone|Android|Mobile/i.test(navigator.userAgent)) {
+                this.platform = 'mobile';
+            }
+        }
+        this.clientName = name;
     },
 
     // ─── Device Info ─────────────────────────────────────
@@ -256,6 +301,7 @@ const LANX = {
             this.ws.onopen = () => {
                 this.wsReconnectDelay = 1000;
                 console.log('[LANX] WebSocket connected');
+                this.registerWithHub();
             };
 
             this.ws.onmessage = (event) => {
@@ -280,6 +326,17 @@ const LANX = {
         }
     },
 
+    registerWithHub() {
+        if (this.ws && this.ws.readyState === WebSocket.OPEN) {
+            this.ws.send(JSON.stringify({
+                type: 'register',
+                id: this.clientId,
+                name: this.clientName,
+                platform: this.platform,
+            }));
+        }
+    },
+
     scheduleReconnect() {
         if (this.wsReconnectTimer) clearTimeout(this.wsReconnectTimer);
         this.wsReconnectTimer = setTimeout(() => {
@@ -297,19 +354,32 @@ const LANX = {
                 if (typeof Devices !== 'undefined') Devices.handleEvent(msg);
                 break;
 
-            case 'transfer_progress':
             case 'transfer_complete':
+                if (typeof Transfer !== 'undefined') Transfer.handleEvent(msg);
+                const myId = this.clientId || (this.deviceInfo && this.deviceInfo.id);
+                if (msg.target_device_id && msg.target_device_id === myId && msg.download_url) {
+                    this.showFileReceivedToast(msg);
+                }
+                break;
+
+            case 'transfer_progress':
             case 'transfer_failed':
             case 'transfer_started':
                 if (typeof Transfer !== 'undefined') Transfer.handleEvent(msg);
                 break;
 
             case 'text_received':
-                if (typeof Clipboard !== 'undefined') Clipboard.handleTextReceived(msg);
+                const curId = this.clientId || (this.deviceInfo && this.deviceInfo.id);
+                if (!msg.target_device_id || msg.target_device_id === curId) {
+                    if (typeof Clipboard !== 'undefined') Clipboard.handleTextReceived(msg);
+                }
                 break;
 
             case 'clipboard_received':
-                if (typeof Clipboard !== 'undefined') Clipboard.handleClipboardReceived(msg);
+                const curClipId = this.clientId || (this.deviceInfo && this.deviceInfo.id);
+                if (!msg.target_device_id || msg.target_device_id === curClipId) {
+                    if (typeof Clipboard !== 'undefined') Clipboard.handleClipboardReceived(msg);
+                }
                 break;
 
             case 'pair_request':
@@ -323,6 +393,26 @@ const LANX = {
             default:
                 console.log('[LANX] Unknown WS message type:', msg.type);
         }
+    },
+
+    showFileReceivedToast(msg) {
+        const container = document.getElementById('toast-container');
+        const toast = document.createElement('div');
+        toast.className = 'toast success';
+        toast.innerHTML = `
+            <div style="margin-bottom: 6px;">
+                <strong>Berkas Masuk:</strong> ${this.escapeHtml(msg.filename)} (${this.formatSize(msg.size)})
+            </div>
+            <a href="${msg.download_url}" download="${this.escapeHtml(msg.filename)}" class="btn btn-sm btn-primary" style="display: inline-block; padding: 4px 10px; text-decoration: none; color: #fff; border-radius: 4px; font-weight: 500;">
+                Unduh Berkas
+            </a>
+        `;
+        container.appendChild(toast);
+
+        setTimeout(() => {
+            toast.classList.add('toast-out');
+            toast.addEventListener('animationend', () => toast.remove());
+        }, 15000);
     },
 
     showIncomingFile(msg) {

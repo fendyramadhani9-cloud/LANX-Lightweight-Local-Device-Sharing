@@ -482,6 +482,24 @@ body {
     margin-top: var(--space-xs);
 }
 
+.empty-state-connect-box {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-sm);
+    background: var(--color-surface);
+    border: 1px solid var(--color-border);
+    padding: 6px 12px;
+    border-radius: var(--radius-sm);
+    margin-top: var(--space-sm);
+}
+
+.empty-state-connect-box code {
+    font-family: monospace;
+    font-size: var(--font-size-sm);
+    color: var(--color-primary);
+    font-weight: 600;
+}
+
 /* --- Transfer List --- */
 .transfer-item {
     display: flex;

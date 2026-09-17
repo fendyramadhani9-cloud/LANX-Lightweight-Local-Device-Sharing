@@ -191,10 +191,12 @@ func (h *Handler) handleUpload(w http.ResponseWriter, r *http.Request) {
 	// Broadcast completion
 	if h.onTransferEvent != nil {
 		h.onTransferEvent("transfer_complete", map[string]any{
-			"transfer_id": t.ID,
-			"download_id": downloadID,
-			"filename":    filename,
-			"size":        written,
+			"transfer_id":      t.ID,
+			"download_id":      downloadID,
+			"filename":         filename,
+			"size":             written,
+			"target_device_id": targetDeviceID,
+			"download_url":     fmt.Sprintf("/api/download/%s", downloadID),
 		})
 	}
 

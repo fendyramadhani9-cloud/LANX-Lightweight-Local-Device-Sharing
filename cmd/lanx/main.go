@@ -71,9 +71,39 @@ func main() {
 	// Create WebSocket hub
 	wsHub := websocket.NewHub(logger)
 
-	// Create device registry
+	// Create device registry and register host device
 	registry := device.NewRegistry(func(eventType string, data any) {
 		wsHub.Broadcast(eventType, data)
+	})
+	registry.SetHostDevice(&device.Device{
+		ID:       cfg.DeviceID,
+		Name:     cfg.DeviceName,
+		IP:       server.GetLocalIP(),
+		Port:     cfg.Port,
+		Online:   true,
+		IsHost:   true,
+		Platform: "desktop",
+	})
+
+	// Register WebSocket client hooks for browser device discovery
+	wsHub.SetClientHooks(func(id, clientName, platform, ip string) {
+		if id == cfg.DeviceID {
+			return
+		}
+		registry.AddOrUpdate(&device.Device{
+			ID:        id,
+			Name:      clientName,
+			IP:        ip,
+			Port:      cfg.Port,
+			Online:    true,
+			IsBrowser: true,
+			Platform:  platform,
+		})
+	}, func(id string) {
+		if id == cfg.DeviceID {
+			return
+		}
+		registry.SetOffline(id)
 	})
 
 	// Create transfer manager

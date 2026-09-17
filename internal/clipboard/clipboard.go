@@ -71,7 +71,21 @@ func (h *Handler) handleSendText(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Forward to target device
+	// If target device is a web browser client or the host itself, broadcast via WebSocket
+	if dev.IsBrowser || dev.IsHost {
+		if h.onEvent != nil {
+			h.onEvent("text_received", map[string]any{
+				"target_device_id": req.TargetDeviceID,
+				"text":             text,
+				"from_device":      h.deviceName,
+				"from_id":          h.deviceID,
+			})
+		}
+		writeJSON(w, http.StatusOK, map[string]string{"status": "sent"})
+		return
+	}
+
+	// Forward to standalone peer device HTTP server
 	err := h.forwardToDevice(dev, "/api/receive/text", map[string]any{
 		"text":        text,
 		"from_device": h.deviceName,
@@ -108,6 +122,20 @@ func (h *Handler) handleSendClipboard(w http.ResponseWriter, r *http.Request) {
 	dev, ok := h.registry.Get(req.TargetDeviceID)
 	if !ok || !dev.Online {
 		writeJSON(w, http.StatusNotFound, map[string]string{"error": "Device not found or offline"})
+		return
+	}
+
+	// If target device is a web browser client or the host itself, broadcast via WebSocket
+	if dev.IsBrowser || dev.IsHost {
+		if h.onEvent != nil {
+			h.onEvent("clipboard_received", map[string]any{
+				"target_device_id": req.TargetDeviceID,
+				"content":          content,
+				"from_device":      h.deviceName,
+				"from_id":          h.deviceID,
+			})
+		}
+		writeJSON(w, http.StatusOK, map[string]string{"status": "sent"})
 		return
 	}
 

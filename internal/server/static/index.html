@@ -185,8 +185,17 @@
                         <line x1="8" y1="21" x2="16" y2="21"/>
                         <line x1="12" y1="17" x2="12" y2="21"/>
                     </svg>
-                    <p class="empty-state-text">No LANX devices found</p>
-                    <p class="empty-state-hint">Make sure both devices are connected to the same local network.</p>
+                    <p class="empty-state-text">Belum ada perangkat lain terhubung</p>
+                    <p class="empty-state-hint">Buka alamat ini di HP / perangkat lain dalam Wi-Fi yang sama:</p>
+                    <div class="empty-state-connect-box">
+                        <code id="display-lan-url">http://...</code>
+                        <button class="btn btn-sm btn-ghost" id="btn-copy-url" type="button">Salin</button>
+                    </div>
+                    <div style="margin-top: 12px;">
+                        <button class="btn btn-primary btn-sm" id="btn-empty-pair" type="button">
+                            Hubungkan via QR Code
+                        </button>
+                    </div>
                 </div>
             </div>
         </section>

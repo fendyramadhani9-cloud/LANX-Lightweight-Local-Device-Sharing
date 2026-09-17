@@ -27,19 +27,26 @@ const Devices = {
         }
     },
 
+    getVisibleDevices() {
+        const myId = LANX.clientId || (LANX.deviceInfo && LANX.deviceInfo.id);
+        return (this.devices || []).filter(d => d.id !== myId);
+    },
+
     render() {
         const grid = document.getElementById('devices-grid');
         const empty = document.getElementById('devices-empty');
+        const visible = this.getVisibleDevices();
 
-        if (!this.devices || this.devices.length === 0) {
+        if (!visible || visible.length === 0) {
             grid.innerHTML = '';
             grid.appendChild(empty);
-            empty.style.display = 'block';
+            empty.style.display = 'flex';
+            this.setupEmptyState();
             return;
         }
 
         empty.style.display = 'none';
-        grid.innerHTML = this.devices.map(d => this.renderCard(d)).join('');
+        grid.innerHTML = visible.map(d => this.renderCard(d)).join('');
 
         // Attach click handlers
         grid.querySelectorAll('.device-card').forEach(card => {
@@ -48,6 +55,29 @@ const Devices = {
                 this.selectDevice(id);
             });
         });
+    },
+
+    setupEmptyState() {
+        const urlEl = document.getElementById('display-lan-url');
+        if (urlEl) {
+            urlEl.textContent = window.location.origin;
+        }
+        const copyBtn = document.getElementById('btn-copy-url');
+        if (copyBtn && !copyBtn.dataset.bound) {
+            copyBtn.dataset.bound = 'true';
+            copyBtn.addEventListener('click', () => {
+                navigator.clipboard.writeText(window.location.origin)
+                    .then(() => LANX.showToast('Tautan disalin ke papan klip', 'success'))
+                    .catch(() => LANX.showToast(window.location.origin, 'info'));
+            });
+        }
+        const pairBtn = document.getElementById('btn-empty-pair');
+        if (pairBtn && !pairBtn.dataset.bound) {
+            pairBtn.dataset.bound = 'true';
+            pairBtn.addEventListener('click', () => {
+                if (LANX.openPairing) LANX.openPairing();
+            });
+        }
     },
 
     renderCard(device) {
@@ -95,11 +125,13 @@ const Devices = {
 
     updateSelects() {
         const selects = document.querySelectorAll('.device-select');
+        const visible = this.getVisibleDevices();
+
         selects.forEach(select => {
             const currentVal = select.value;
             const options = ['<option value="">Select a device</option>'];
 
-            this.devices.forEach(d => {
+            visible.forEach(d => {
                 if (d.online !== false) {
                     options.push(`<option value="${d.id}" ${d.id === currentVal ? 'selected' : ''}>${LANX.escapeHtml(d.name)}</option>`);
                 }
@@ -147,16 +179,23 @@ const Devices = {
     },
 
     handleEvent(msg) {
+        const myId = LANX.clientId || (LANX.deviceInfo && LANX.deviceInfo.id);
         switch (msg.type) {
             case 'device_online':
-                this.addOrUpdateDevice(msg.device, true);
-                LANX.showToast(`${msg.device.name} is online`, 'info');
+                if (msg.device && msg.device.id !== myId) {
+                    this.addOrUpdateDevice(msg.device, true);
+                    LANX.showToast(`${msg.device.name} terhubung`, 'info');
+                }
                 break;
             case 'device_offline':
-                this.setDeviceOffline(msg.device_id);
+                if (msg.device_id && msg.device_id !== myId) {
+                    this.setDeviceOffline(msg.device_id);
+                }
                 break;
             case 'device_update':
-                this.addOrUpdateDevice(msg.device, true);
+                if (msg.device && msg.device.id !== myId) {
+                    this.addOrUpdateDevice(msg.device, true);
+                }
                 break;
         }
     },
