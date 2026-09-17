@@ -1,16 +1,13 @@
 /**
- * LANX — Clipboard & Text Sharing Module
- * Handles: text sharing, clipboard read/write, received items
+ * LANX — Text & Note Sharing Module
+ * Handles: sending text/notes/links, receiving messages, and reliable copying
  */
 
 const Clipboard = {
     receivedTexts: [],
-    receivedClipboards: [],
 
     init() {
         this.setupTextSharing();
-        this.setupClipboardSharing();
-        this.checkClipboardPermission();
     },
 
     // ─── Text Sharing ────────────────────────────────────
@@ -20,12 +17,26 @@ const Clipboard = {
         const select = document.getElementById('text-device-select');
         const sendBtn = document.getElementById('btn-send-text');
 
+        if (!input || !sendBtn) return;
+
         const updateBtn = () => {
             sendBtn.disabled = !select.value || !input.value.trim();
         };
 
         input.addEventListener('input', updateBtn);
-        select.addEventListener('change', updateBtn);
+        if (select) {
+            select.addEventListener('change', updateBtn);
+        }
+
+        // Support Ctrl+Enter / Cmd+Enter to send
+        input.addEventListener('keydown', (e) => {
+            if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+                e.preventDefault();
+                if (!sendBtn.disabled) {
+                    this.sendText();
+                }
+            }
+        });
 
         sendBtn.addEventListener('click', () => this.sendText());
     },
@@ -34,9 +45,26 @@ const Clipboard = {
         const input = document.getElementById('text-input');
         const select = document.getElementById('text-device-select');
         const text = input.value.trim();
-        const deviceId = select.value;
+        let deviceId = select ? select.value : '';
 
-        if (!text || !deviceId) return;
+        // Auto-select single available device if not selected
+        if (!deviceId && typeof Devices !== 'undefined') {
+            const onlineDevs = Devices.getVisibleDevices().filter(d => d.online !== false);
+            if (onlineDevs.length === 1) {
+                deviceId = onlineDevs[0].id;
+                if (select) select.value = deviceId;
+            }
+        }
+
+        if (!text) {
+            LANX.showToast('Teks tidak boleh kosong', 'error');
+            return;
+        }
+
+        if (!deviceId) {
+            LANX.showToast('Pilih perangkat tujuan terlebih dahulu', 'error');
+            return;
+        }
 
         try {
             const res = await fetch('/api/text', {
@@ -49,110 +77,52 @@ const Clipboard = {
             });
 
             if (res.ok) {
-                LANX.showToast('Text sent', 'success');
+                LANX.showToast('Teks berhasil terkirim!', 'success');
                 input.value = '';
+                const sendBtn = document.getElementById('btn-send-text');
+                if (sendBtn) sendBtn.disabled = true;
             } else {
                 const data = await res.json();
-                LANX.showToast(data.error || 'Failed to send text', 'error');
+                LANX.showToast(data.error || 'Gagal mengirim teks', 'error');
             }
         } catch (e) {
-            LANX.showToast('Failed to send text', 'error');
+            LANX.showToast('Gagal mengirim teks', 'error');
         }
     },
 
-    // ─── Clipboard Sharing ───────────────────────────────
-
-    setupClipboardSharing() {
-        const input = document.getElementById('clipboard-input');
-        const select = document.getElementById('clipboard-device-select');
-        const sendBtn = document.getElementById('btn-send-clipboard');
-        const pasteBtn = document.getElementById('btn-paste-clipboard');
-
-        const updateBtn = () => {
-            sendBtn.disabled = !select.value || !input.value.trim();
-        };
-
-        input.addEventListener('input', updateBtn);
-        select.addEventListener('change', updateBtn);
-
-        sendBtn.addEventListener('click', () => this.sendClipboard());
-        pasteBtn.addEventListener('click', () => this.pasteFromClipboard());
-    },
-
-    async pasteFromClipboard() {
-        const input = document.getElementById('clipboard-input');
-
-        try {
-            const text = await navigator.clipboard.readText();
-            input.value = text;
-            input.dispatchEvent(new Event('input'));
-        } catch (e) {
-            // Show notice about clipboard permission
-            document.getElementById('clipboard-notice').style.display = 'flex';
-            LANX.showToast('Clipboard access denied by browser', 'error');
-        }
-    },
-
-    async checkClipboardPermission() {
-        try {
-            const result = await navigator.permissions.query({ name: 'clipboard-read' });
-            if (result.state === 'denied') {
-                document.getElementById('clipboard-notice').style.display = 'flex';
-            }
-        } catch (e) {
-            // Permissions API not supported — clipboard may still work on user gesture
-        }
-    },
-
-    async sendClipboard() {
-        const input = document.getElementById('clipboard-input');
-        const select = document.getElementById('clipboard-device-select');
-        const text = input.value.trim();
-        const deviceId = select.value;
-
-        if (!text || !deviceId) return;
-
-        try {
-            const res = await fetch('/api/clipboard', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    content: text,
-                    target_device_id: deviceId,
-                }),
-            });
-
-            if (res.ok) {
-                LANX.showToast('Clipboard sent', 'success');
-                input.value = '';
-            } else {
-                const data = await res.json();
-                LANX.showToast(data.error || 'Failed to send clipboard', 'error');
-            }
-        } catch (e) {
-            LANX.showToast('Failed to send clipboard', 'error');
-        }
-    },
-
-    // ─── Received Text ───────────────────────────────────
+    // ─── Received Items ──────────────────────────────────
 
     handleTextReceived(msg) {
+        this.addReceivedItem(msg.from_device || 'Perangkat Lain', msg.text);
+        LANX.showToast(`Pesan baru dari ${msg.from_device || 'Perangkat Lain'}`, 'info');
+    },
+
+    handleClipboardReceived(msg) {
+        this.addReceivedItem(msg.from_device || 'Perangkat Lain', msg.content);
+        LANX.showToast(`Pesan baru dari ${msg.from_device || 'Perangkat Lain'}`, 'info');
+    },
+
+    addReceivedItem(from, content) {
+        if (!content) return;
         this.receivedTexts.unshift({
-            from: msg.from_device || 'Unknown',
-            content: msg.text,
+            from: from,
+            content: content,
             timestamp: Date.now(),
         });
 
-        // Keep max 20
-        if (this.receivedTexts.length > 20) this.receivedTexts.pop();
+        // Keep last 30 messages
+        if (this.receivedTexts.length > 30) {
+            this.receivedTexts.pop();
+        }
 
         this.renderReceivedTexts();
-        LANX.showToast(`Text received from ${msg.from_device || 'Unknown'}`, 'info');
     },
 
     renderReceivedTexts() {
         const section = document.getElementById('received-texts-section');
         const container = document.getElementById('received-texts');
+
+        if (!section || !container) return;
 
         if (this.receivedTexts.length === 0) {
             section.style.display = 'none';
@@ -160,79 +130,73 @@ const Clipboard = {
         }
 
         section.style.display = 'block';
-        container.innerHTML = this.receivedTexts.map(item => `
+        container.innerHTML = this.receivedTexts.map((item, idx) => `
             <div class="received-item">
                 <div class="received-item-header">
-                    <span class="received-item-from">From ${LANX.escapeHtml(item.from)}</span>
+                    <span class="received-item-from">Dari: <strong>${LANX.escapeHtml(item.from)}</strong></span>
                     <span class="received-item-time">${LANX.formatTime(item.timestamp)}</span>
                 </div>
                 <div class="received-item-content">${LANX.escapeHtml(item.content)}</div>
                 <div class="received-item-actions">
-                    <button class="btn btn-ghost btn-sm" onclick="Clipboard.copyToClipboard('${LANX.escapeHtml(item.content.replace(/'/g, "\\'"))}')">
-                        Copy
+                    <button class="btn btn-ghost btn-sm btn-copy-text" data-index="${idx}">
+                        📋 Salin Teks
                     </button>
                 </div>
             </div>
         `).join('');
-    },
 
-    // ─── Received Clipboard ──────────────────────────────
-
-    handleClipboardReceived(msg) {
-        this.receivedClipboards.unshift({
-            from: msg.from_device || 'Unknown',
-            content: msg.content,
-            timestamp: Date.now(),
+        // Attach click handlers to copy buttons
+        container.querySelectorAll('.btn-copy-text').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                const idx = parseInt(btn.dataset.index, 10);
+                const item = this.receivedTexts[idx];
+                if (item) {
+                    this.copyToClipboard(item.content);
+                }
+            });
         });
-
-        if (this.receivedClipboards.length > 20) this.receivedClipboards.pop();
-
-        this.renderReceivedClipboards();
-
-        // Auto-copy to clipboard if possible
-        this.copyToClipboard(msg.content, true);
-
-        LANX.showToast(`Clipboard synced from ${msg.from_device || 'Unknown'}`, 'info');
     },
 
-    renderReceivedClipboards() {
-        const section = document.getElementById('received-clipboard-section');
-        const container = document.getElementById('received-clipboard');
+    // ─── Copy to Clipboard (Safe with Fallback) ───────────
 
-        if (this.receivedClipboards.length === 0) {
-            section.style.display = 'none';
-            return;
+    copyToClipboard(text) {
+        if (!text) return;
+
+        if (navigator.clipboard && window.isSecureContext) {
+            navigator.clipboard.writeText(text)
+                .then(() => {
+                    LANX.showToast('Teks berhasil disalin ke papan klip!', 'success');
+                })
+                .catch(() => {
+                    this.fallbackCopy(text);
+                });
+        } else {
+            this.fallbackCopy(text);
         }
-
-        section.style.display = 'block';
-        container.innerHTML = this.receivedClipboards.map(item => `
-            <div class="received-item">
-                <div class="received-item-header">
-                    <span class="received-item-from">From ${LANX.escapeHtml(item.from)}</span>
-                    <span class="received-item-time">${LANX.formatTime(item.timestamp)}</span>
-                </div>
-                <div class="received-item-content">${LANX.escapeHtml(item.content)}</div>
-                <div class="received-item-actions">
-                    <button class="btn btn-ghost btn-sm" onclick="Clipboard.copyToClipboard(\`${LANX.escapeHtml(item.content.replace(/`/g, '\\`'))}\`)">
-                        Copy
-                    </button>
-                </div>
-            </div>
-        `).join('');
     },
 
-    // ─── Copy to Clipboard ───────────────────────────────
+    fallbackCopy(text) {
+        const ta = document.createElement('textarea');
+        ta.value = text;
+        ta.setAttribute('readonly', '');
+        ta.style.position = 'fixed';
+        ta.style.top = '-9999px';
+        ta.style.left = '-9999px';
+        document.body.appendChild(ta);
+        ta.focus();
+        ta.select();
 
-    async copyToClipboard(text, silent = false) {
         try {
-            await navigator.clipboard.writeText(text);
-            if (!silent) {
-                LANX.showToast('Copied to clipboard', 'success');
+            const success = document.execCommand('copy');
+            if (success) {
+                LANX.showToast('Teks berhasil disalin ke papan klip!', 'success');
+            } else {
+                LANX.showToast('Gagal menyalin teks', 'error');
             }
-        } catch (e) {
-            if (!silent) {
-                LANX.showToast('Failed to copy — clipboard permission denied', 'error');
-            }
+        } catch (err) {
+            LANX.showToast('Gagal menyalin teks', 'error');
         }
+
+        document.body.removeChild(ta);
     },
 };

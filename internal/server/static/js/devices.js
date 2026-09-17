@@ -139,6 +139,11 @@ const Devices = {
 
             select.innerHTML = options.join('');
 
+            // If only 1 peer device is available, auto-select it
+            if (visible.length === 1 && !currentVal) {
+                select.value = visible[0].id;
+            }
+
             // If a device is selected via card, update selects
             if (this.selectedDevice) {
                 select.value = this.selectedDevice;
@@ -150,20 +155,11 @@ const Devices = {
     },
 
     updateSendButtons() {
-        // Text send button
         const textSelect = document.getElementById('text-device-select');
         const textBtn = document.getElementById('btn-send-text');
         const textInput = document.getElementById('text-input');
         if (textBtn && textSelect && textInput) {
             textBtn.disabled = !textSelect.value || !textInput.value.trim();
-        }
-
-        // Clipboard send button
-        const clipSelect = document.getElementById('clipboard-device-select');
-        const clipBtn = document.getElementById('btn-send-clipboard');
-        const clipInput = document.getElementById('clipboard-input');
-        if (clipBtn && clipSelect && clipInput) {
-            clipBtn.disabled = !clipSelect.value || !clipInput.value.trim();
         }
     },
 
