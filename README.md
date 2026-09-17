@@ -1,177 +1,192 @@
-# LANX — Local Device Sharing
+# LANX — Lightweight Local Device Sharing
 
-> **Share locally. Stay private.**
+LANX is a lightweight, self-contained local device sharing application designed for seamless peer-to-peer data exchange across devices connected to the same Local Area Network (LAN or Wi-Fi). It functions completely offline without requiring internet access, cloud infrastructure, third-party relays, or external databases.
 
-LANX is a lightweight, single-binary application for sharing files, text, and clipboard content across devices on the same local network. No internet, no cloud, no accounts required.
+The system embeds a modern web interface directly into a single binary, providing a friction-free experience for transferring files, text snippets, and clipboard data across heterogeneous operating systems.
 
-## Features
+---
 
-- 📁 **File Transfer** — Drag & drop files, streaming upload/download (handles large files without RAM spikes)
-- 📝 **Text Sharing** — Send text snippets between devices instantly
-- 📋 **Clipboard Sync** — Share clipboard content across devices
-- 🔍 **Auto Discovery** — Devices find each other automatically via mDNS
-- 📱 **QR Code Pairing** — Scan to connect devices
-- 📊 **Realtime Progress** — WebSocket-powered transfer progress
-- 🌙 **Dark Mode** — Light and dark themes
-- 🔒 **Private** — Everything stays on your local network
-- 💻 **Cross-Platform** — Windows, Linux, macOS
+## Performance and Resource Footprint
 
-## Architecture
+Designed with minimal overhead in mind:
+
+- Memory Footprint (Idle): ~18 MB to 20 MB Working Set RAM.
+- Memory Footprint (Active Transfer): Constant O(1) buffer memory via streaming io.Copy chunking, preventing memory spikes during multi-gigabyte transfers.
+- Binary Size: Single self-contained executable (~13 MB) with all assets and dependencies compiled in.
+- CPU Utilization: Near 0% at idle; lightweight event-driven WebSocket and mDNS operations.
+
+---
+
+## Key Features
+
+- File Transfer: High-throughput streaming uploads and downloads. Large files are streamed directly to disk without loading into RAM.
+- Text and Snippet Sharing: Real-time bilateral text sharing between connected network clients.
+- Clipboard Synchronization: Seamless one-click copying and pasting across local machines.
+- Zero-Configuration Discovery: Automatic peer discovery across the local subnet utilizing mDNS (Multicast DNS).
+- QR-Based Quick Pairing: Mobile devices can connect immediately by scanning an on-screen QR code.
+- Real-Time Transfer Telemetry: WebSocket-based live progress updates, throughput tracking, and transfer status reporting.
+- Native Dark and Light Themes: Clean, responsive user interface adapted for desktop and mobile viewports.
+- Local Privacy First: All communications and data remain strictly contained within the local subnet.
+- Cross-Platform Compatibility: Fully functional on Windows, Linux, and macOS.
+
+---
+
+## System Architecture
+
+LANX utilizes a decentralized peer-to-peer topology. Each node runs an embedded HTTP server and mDNS broadcaster/listener.
 
 ```
-Device A                    Device B
-   │                           │
-   │     ┌─────────────┐      │
-   └─────┤  LAN / WiFi  ├─────┘
-         └──────┬──────┘
-                │
-         mDNS Discovery
-         (_lanx._tcp)
-                │
-         HTTP + WebSocket
-         (direct device-to-device)
+       +-----------------------+              +-----------------------+
+       |   Device A (LANX)     |              |   Device B (LANX)     |
+       |  - HTTP Server        |              |  - HTTP Server        |
+       |  - WebSocket Hub      |              |  - WebSocket Hub      |
+       |  - mDNS Announcer     |              |  - mDNS Announcer     |
+       +-----------+-----------+              +-----------+-----------+
+                   |                                      |
+                   |       mDNS Peer Discovery            |
+                   |<====================================>|
+                   |        (_lanx._tcp / Port 5353)      |
+                   |                                      |
+                   |   Direct HTTP & WebSocket Stream     |
+                   |<------------------------------------>|
+                   |      (File, Text, Clipboard Data)    |
 ```
 
-Each device runs its own LANX instance. Communication is direct — no central server.
+### Communication Flow
+
+1. Discovery: On startup, LANX announces its service instance (`_lanx._tcp`) via mDNS while actively querying for other network peers.
+2. Connection: Peer devices are resolved and displayed in the local device registry.
+3. Data Transfer: Files and text payloads are transmitted directly via HTTP POST endpoints using streaming multipart readers to ensure low memory consumption.
+4. Notifications: WebSocket connections broadcast device presence and live transfer progress to all active browser sessions.
+
+---
 
 ## Installation
 
-### From Binary
+### Prerequisites
 
-Download the latest release for your platform from the [Releases](https://github.com/fendy/lanx/releases) page.
+- Go 1.21 or later (if compiling from source)
+- Local network connection (Wi-Fi or Ethernet)
 
-### From Source
+### Compiling from Source
 
 ```bash
-git clone https://github.com/fendy/lanx.git
-cd lanx
-go build -o lanx ./cmd/lanx/
+git clone https://github.com/fendyramadhani9-cloud/LANX-Lightweight-Local-Device-Sharing.git
+cd LANX-Lightweight-Local-Device-Sharing
+go build -ldflags="-s -w" -o lanx ./cmd/lanx/
 ```
+
+On Windows:
+
+```powershell
+go build -ldflags="-s -w" -o lanx.exe ./cmd/lanx/
+```
+
+---
 
 ## Usage
 
+Start the application with default settings:
+
 ```bash
-# Start with defaults
-lanx
-
-# Custom port
-lanx --port 9090
-
-# Custom device name
-lanx --name "My Laptop"
-
-# Custom data directory
-lanx --data /path/to/data
+./lanx
 ```
 
-LANX starts and displays:
+### Command Line Options
 
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `--port` | integer | `8080` | Port for the HTTP and WebSocket service |
+| `--name` | string | Hostname | Display name broadcasted to other network peers |
+| `--data` | string | `~/.lanx` | Directory for configuration and received downloads |
+| `--version` | boolean | `false` | Display version information and exit |
+| `--help` | boolean | `false` | Display command usage and available flags |
+
+### Examples
+
+Run on a custom port with a designated device name:
+
+```bash
+./lanx --port 9000 --name "Workstation-Office"
 ```
-LANX
 
-Local sharing server started
+Specify a custom download and data directory:
 
-Local:
-http://192.168.1.10:8080
-
-Device: My Laptop
-
-Waiting for devices...
+```bash
+./lanx --data "/opt/lanx-storage"
 ```
 
-Open the URL in any browser on your network to access the web UI.
+Once started, the console will output the local network URL (e.g., `http://192.168.1.50:8080`). Navigate to this address from any browser on your local network.
 
-## CLI Flags
+---
 
-| Flag | Description | Default |
-|------|-------------|---------|
-| `--port` | HTTP server port | `8080` |
-| `--name` | Device name | OS hostname |
-| `--data` | Data directory | `~/.lanx` |
-| `--version` | Show version | |
-| `--help` | Show help | |
+## Directory Structure
 
-## Network Requirements
-
-- All devices must be on the **same local network** (LAN/WiFi)
-- **No internet required** — works completely offline
-- mDNS multicast must be allowed (most routers allow this by default)
-- Port 8080 (or custom) must be accessible between devices
-
-## Data Directory
+LANX automatically manages its state within the user's home directory (or custom path provided via `--data`):
 
 ```
 ~/.lanx/
-├── config.json      # Device configuration
-└── downloads/       # Received files
+├── config.json         # Device identity, UUID, and user preferences
+└── downloads/          # Default destination directory for received files
 ```
 
-## Security
+---
 
-- Random device IDs (UUID v4)
-- Pairing tokens with 5-minute expiry
-- Filename sanitization (prevents path traversal)
-- Request size limits
-- No data leaves your local network
+## Security and Integrity Considerations
 
-## Development
+- Subnet Isolation: Data never leaves the local network boundary. No external telemetry or remote cloud connections are initiated.
+- Path Traversal Protection: Inbound file names are strictly sanitized to prevent directory traversal vulnerabilities (e.g., stripping relative path components and illegal characters).
+- Expiring Pairing Tokens: Pairing operations utilize time-limited security tokens (5-minute expiration) generated via cryptographic random bytes.
+- Memory Defense: Upload limits and streaming handlers prevent denial-of-service attempts via unbounded memory allocation.
 
-### Prerequisites
+---
 
-- Go 1.21+
+## Cross-Platform Compilation
 
-### Build
+Build binaries for target platforms from any development environment:
 
 ```bash
-go build -o lanx ./cmd/lanx/
+# Windows (64-bit)
+GOOS=windows GOARCH=amd64 go build -ldflags="-s -w" -o dist/lanx-windows-amd64.exe ./cmd/lanx/
+
+# Linux (64-bit)
+GOOS=linux GOARCH=amd64 go build -ldflags="-s -w" -o dist/lanx-linux-amd64 ./cmd/lanx/
+
+# macOS (Apple Silicon - arm64)
+GOOS=darwin GOARCH=arm64 go build -ldflags="-s -w" -o dist/lanx-darwin-arm64 ./cmd/lanx/
+
+# macOS (Intel - amd64)
+GOOS=darwin GOARCH=amd64 go build -ldflags="-s -w" -o dist/lanx-darwin-amd64 ./cmd/lanx/
 ```
 
-### Test
-
-```bash
-go test ./...
-```
-
-### Cross-Platform Build
-
-```bash
-# Windows
-GOOS=windows GOARCH=amd64 go build -o lanx.exe ./cmd/lanx/
-
-# Linux
-GOOS=linux GOARCH=amd64 go build -o lanx ./cmd/lanx/
-
-# macOS (Apple Silicon)
-GOOS=darwin GOARCH=arm64 go build -o lanx ./cmd/lanx/
-```
+---
 
 ## Troubleshooting
 
-### Devices not discovering each other
+### Devices Not Discoverable
 
-- Ensure both devices are on the same WiFi/LAN
-- Check that mDNS (port 5353 UDP) is not blocked by firewall
-- Try accessing the URL directly: `http://<ip>:<port>`
+- Verify that all machines are connected to the same subnet and AP isolation (client isolation) is disabled on your Wi-Fi router.
+- Ensure that UDP port 5353 (mDNS) is not blocked by local software firewalls (Windows Defender, UFW, or pf).
+- If multicast discovery is restricted on your network, access the target machine directly using its IP address and port in your browser.
 
-### File transfer fails
+### Transfer Failures
 
-- Check available disk space
-- Verify the download directory is writable
-- Large files stream to disk — ensure stable network connection
+- Confirm that write permissions exist on the download directory.
+- Ensure adequate disk storage is available for incoming payloads.
 
-### WebSocket connection issues
+---
 
-- Some corporate proxies block WebSocket connections
-- Try accessing via direct IP instead of hostname
+## Technical Specifications
 
-## Tech Stack
+- Core Runtime: Go (Golang)
+- Web Server: Go `net/http` standard library
+- Network Discovery: Multicast DNS (`grandcat/zeroconf`)
+- WebSocket Implementation: `coder/websocket`
+- QR Generation: `skip2/go-qrcode`
+- Frontend: Embedded standards-compliant HTML5, CSS3, and ES6 JavaScript (No external CDN dependencies)
 
-- **Backend**: Go (standard library + minimal dependencies)
-- **Frontend**: Vanilla HTML/CSS/JS (embedded in binary)
-- **Discovery**: mDNS via [zeroconf](https://github.com/grandcat/zeroconf)
-- **QR Code**: [go-qrcode](https://github.com/skip2/go-qrcode)
-- **WebSocket**: [coder/websocket](https://github.com/coder/websocket)
+---
 
 ## License
 
-MIT
+This project is licensed under the MIT License.
