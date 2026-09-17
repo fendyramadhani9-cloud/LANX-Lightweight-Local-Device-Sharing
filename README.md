@@ -1,74 +1,74 @@
-# LANX — Lightweight Local Device Sharing
+# LANX — Berbagi Data Antar-Perangkat di Jaringan Lokal
 
-LANX is a lightweight, self-contained local device sharing application designed for seamless peer-to-peer data exchange across devices connected to the same Local Area Network (LAN or Wi-Fi). It functions completely offline without requiring internet access, cloud infrastructure, third-party relays, or external databases.
+LANX adalah aplikasi berbagi data lokal yang dirancang untuk pertukaran berkas, teks, dan papan klip (clipboard) secara langsung antar-perangkat dalam satu jaringan lokal (LAN atau Wi-Fi). Aplikasi ini beroperasi sepenuhnya secara luring (offline) tanpa memerlukan koneksi internet, infrastruktur cloud, server perantara, ataupun basis data eksternal.
 
-The system embeds a modern web interface directly into a single binary, providing a friction-free experience for transferring files, text snippets, and clipboard data across heterogeneous operating systems.
-
----
-
-## Performance and Resource Footprint
-
-Designed with minimal overhead in mind:
-
-- Memory Footprint (Idle): ~18 MB to 20 MB Working Set RAM.
-- Memory Footprint (Active Transfer): Constant O(1) buffer memory via streaming io.Copy chunking, preventing memory spikes during multi-gigabyte transfers.
-- Binary Size: Single self-contained executable (~13 MB) with all assets and dependencies compiled in.
-- CPU Utilization: Near 0% at idle; lightweight event-driven WebSocket and mDNS operations.
+Seluruh antarmuka web modern dikompilasi langsung ke dalam satu berkas biner mandiri (*single binary*), memberikan kemudahan akses tanpa konfigurasi rumit untuk berbagai sistem operasi.
 
 ---
 
-## Key Features
+## Performa dan Efisiensi Sumber Daya
 
-- File Transfer: High-throughput streaming uploads and downloads. Large files are streamed directly to disk without loading into RAM.
-- Text and Snippet Sharing: Real-time bilateral text sharing between connected network clients.
-- Clipboard Synchronization: Seamless one-click copying and pasting across local machines.
-- Zero-Configuration Discovery: Automatic peer discovery across the local subnet utilizing mDNS (Multicast DNS).
-- QR-Based Quick Pairing: Mobile devices can connect immediately by scanning an on-screen QR code.
-- Real-Time Transfer Telemetry: WebSocket-based live progress updates, throughput tracking, and transfer status reporting.
-- Native Dark and Light Themes: Clean, responsive user interface adapted for desktop and mobile viewports.
-- Local Privacy First: All communications and data remain strictly contained within the local subnet.
-- Cross-Platform Compatibility: Fully functional on Windows, Linux, and macOS.
+Aplikasi ini dioptimalkan untuk meminimalkan beban komputasi perangkat:
+
+- Penggunaan RAM (Idle): Sekitar 18 MB hingga 20 MB Working Set RAM.
+- Penggunaan RAM (Transfer Aktif): Konstan O(1) buffer memory melalui teknik *streaming io.Copy* per potongan data, mencegah lonjakan konsumsi memori saat mentransfer berkas berukuran gigabyte.
+- Ukuran Biner: Berkas eksekutabel tunggal (~13 MB) yang telah mencakup seluruh aset antarmuka dan dependensi.
+- Penggunaan CPU: Mendekati 0% saat kondisi diam (idle); berbasis *event-driven* untuk WebSocket dan mDNS.
 
 ---
 
-## System Architecture
+## Fitur Utama
 
-LANX utilizes a decentralized peer-to-peer topology. Each node runs an embedded HTTP server and mDNS broadcaster/listener.
+- Transfer Berkas: Unggah dan unduh berkas secara streaming berkecepatan tinggi tanpa membebani kapasitas RAM.
+- Berbagi Teks: Mengirim catatan, tautan, dan potongan teks antar-perangkat secara instan.
+- Sinkronisasi Papan Klip (Clipboard): Salin dan tempel konten antar-perangkat dengan sekali klik.
+- Penemuan Otomatis (Zero-Configuration): Perangkat saling menemukan secara otomatis di jaringan lokal menggunakan mDNS (Multicast DNS).
+- Pemasangan Cepat via QR Code: Perangkat seluler dapat terhubung langsung dengan memindai kode QR di layar.
+- Telemetri Real-Time: Pemantauan progres transfer, kecepatan, dan status secara langsung melalui koneksi WebSocket.
+- Tema Gelap dan Terang: Antarmuka yang bersih, responsif, dan nyaman digunakan di desktop maupun ponsel.
+- Privasi Terjaga: Seluruh data dan transmisi tetap berada di dalam jaringan lokal tanpa ada kebocoran keluar.
+- Lintas Platform: Dapat dijalankan di Windows, Linux, dan macOS.
+
+---
+
+## Arsitektur Sistem
+
+LANX menggunakan topologi *peer-to-peer* terdesentralisasi. Setiap perangkat menjalankan server HTTP lokal dan modul mDNS broadcaster/listener mandiri.
 
 ```
        +-----------------------+              +-----------------------+
-       |   Device A (LANX)     |              |   Device B (LANX)     |
-       |  - HTTP Server        |              |  - HTTP Server        |
+       |  Perangkat A (LANX)   |              |  Perangkat B (LANX)   |
+       |  - Server HTTP        |              |  - Server HTTP        |
        |  - WebSocket Hub      |              |  - WebSocket Hub      |
        |  - mDNS Announcer     |              |  - mDNS Announcer     |
        +-----------+-----------+              +-----------+-----------+
                    |                                      |
-                   |       mDNS Peer Discovery            |
+                   |      Penemuan Perangkat (mDNS)       |
                    |<====================================>|
                    |        (_lanx._tcp / Port 5353)      |
                    |                                      |
-                   |   Direct HTTP & WebSocket Stream     |
+                   |   Aliran Data HTTP & WebSocket       |
                    |<------------------------------------>|
-                   |      (File, Text, Clipboard Data)    |
+                   |    (Berkas, Teks, Data Clipboard)    |
 ```
 
-### Communication Flow
+### Alur Komunikasi
 
-1. Discovery: On startup, LANX announces its service instance (`_lanx._tcp`) via mDNS while actively querying for other network peers.
-2. Connection: Peer devices are resolved and displayed in the local device registry.
-3. Data Transfer: Files and text payloads are transmitted directly via HTTP POST endpoints using streaming multipart readers to ensure low memory consumption.
-4. Notifications: WebSocket connections broadcast device presence and live transfer progress to all active browser sessions.
+1. Penemuan (Discovery): Saat aplikasi dimulai, LANX mempublikasikan layanannya (`_lanx._tcp`) melalui mDNS sekaligus memindai perangkat lain di subnet yang sama.
+2. Resolusi: Perangkat yang terdeteksi akan langsung muncul di daftar perangkat aktif pada antarmuka web.
+3. Pengiriman Data: Berkas dan teks dikirim langsung antar-perangkat menggunakan HTTP POST dengan mekanisme streaming multipart.
+4. Notifikasi: Sambungan WebSocket menyiarkan kehadiran perangkat baru dan progres transfer langsung ke sesi peramban yang aktif.
 
 ---
 
-## Installation
+## Instalasi
 
-### Prerequisites
+### Kebutuhan Sistem
 
-- Go 1.21 or later (if compiling from source)
-- Local network connection (Wi-Fi or Ethernet)
+- Go versi 1.21 atau lebih baru (jika melakukan kompilasi dari kode sumber)
+- Jaringan lokal (Wi-Fi atau kabel LAN)
 
-### Compiling from Source
+### Kompilasi dari Kode Sumber
 
 ```bash
 git clone https://github.com/fendyramadhani9-cloud/LANX-Lightweight-Local-Device-Sharing.git
@@ -76,7 +76,7 @@ cd LANX-Lightweight-Local-Device-Sharing
 go build -ldflags="-s -w" -o lanx ./cmd/lanx/
 ```
 
-On Windows:
+Untuk pengguna Windows:
 
 ```powershell
 go build -ldflags="-s -w" -o lanx.exe ./cmd/lanx/
@@ -84,66 +84,66 @@ go build -ldflags="-s -w" -o lanx.exe ./cmd/lanx/
 
 ---
 
-## Usage
+## Panduan Penggunaan
 
-Start the application with default settings:
+Jalankan aplikasi dengan konfigurasi standar:
 
 ```bash
 ./lanx
 ```
 
-### Command Line Options
+### Opsi Perintah (CLI Flags)
 
-| Parameter | Type | Default | Description |
-|-----------|------|---------|-------------|
-| `--port` | integer | `8080` | Port for the HTTP and WebSocket service |
-| `--name` | string | Hostname | Display name broadcasted to other network peers |
-| `--data` | string | `~/.lanx` | Directory for configuration and received downloads |
-| `--version` | boolean | `false` | Display version information and exit |
-| `--help` | boolean | `false` | Display command usage and available flags |
+| Parameter | Tipe | Nilai Bawaan | Deskripsi |
+|-----------|------|--------------|-----------|
+| `--port` | integer | `8080` | Port untuk layanan HTTP dan WebSocket |
+| `--name` | string | Hostname | Nama perangkat yang akan ditampilkan ke perangkat lain |
+| `--data` | string | `~/.lanx` | Direktori penyimpanan berkas unduhan dan konfigurasi |
+| `--version` | boolean | `false` | Menampilkan informasi versi aplikasi |
+| `--help` | boolean | `false` | Menampilkan petunjuk opsi perintah |
 
-### Examples
+### Contoh Penggunaan
 
-Run on a custom port with a designated device name:
-
-```bash
-./lanx --port 9000 --name "Workstation-Office"
-```
-
-Specify a custom download and data directory:
+Menjalankan pada port khusus dengan nama perangkat tertentu:
 
 ```bash
-./lanx --data "/opt/lanx-storage"
+./lanx --port 9000 --name "Laptop-Kerja"
 ```
 
-Once started, the console will output the local network URL (e.g., `http://192.168.1.50:8080`). Navigate to this address from any browser on your local network.
+Menentukan lokasi folder penyimpanan berkas yang diterima:
+
+```bash
+./lanx --data "D:/LANX-Storage"
+```
+
+Setelah aplikasi berjalan, terminal akan menampilkan alamat URL lokal (contoh: `http://192.168.1.50:8080`). Buka alamat tersebut melalui peramban (browser) di perangkat apa pun dalam jaringan yang sama.
 
 ---
 
-## Directory Structure
+## Struktur Direktori Data
 
-LANX automatically manages its state within the user's home directory (or custom path provided via `--data`):
+Secara default, data aplikasi disimpan di direktori home pengguna (atau lokasi yang ditentukan melalui parameter `--data`):
 
 ```
 ~/.lanx/
-├── config.json         # Device identity, UUID, and user preferences
-└── downloads/          # Default destination directory for received files
+├── config.json         # Identitas perangkat, UUID, dan preferensi
+└── downloads/          # Direktori penampung berkas yang diterima
 ```
 
 ---
 
-## Security and Integrity Considerations
+## Aspek Keamanan dan Privasi
 
-- Subnet Isolation: Data never leaves the local network boundary. No external telemetry or remote cloud connections are initiated.
-- Path Traversal Protection: Inbound file names are strictly sanitized to prevent directory traversal vulnerabilities (e.g., stripping relative path components and illegal characters).
-- Expiring Pairing Tokens: Pairing operations utilize time-limited security tokens (5-minute expiration) generated via cryptographic random bytes.
-- Memory Defense: Upload limits and streaming handlers prevent denial-of-service attempts via unbounded memory allocation.
+- Isolasi Jaringan: Data tidak pernah keluar dari jaringan lokal. Tidak ada pelacakan, analitik, maupun koneksi ke server pihak ketiga.
+- Pencegahan Path Traversal: Nama berkas yang masuk disaring secara ketat untuk mencegah manipulasi direktori sistem.
+- Token Pairing Dinamis: Token otentikasi pemasangan perangkat memiliki masa kedaluwarsa 5 menit yang diacak menggunakan algoritma kriptografi.
+- Proteksi Alokasi Memori: Pembatasan ukuran payload dan mekanisme streaming mencegah serangan kehabisan memori (*out of memory*).
 
 ---
 
-## Cross-Platform Compilation
+## Kompilasi Lintas Platform (Cross-Compilation)
 
-Build binaries for target platforms from any development environment:
+Anda dapat membuat berkas instalasi biner untuk berbagai sistem operasi:
 
 ```bash
 # Windows (64-bit)
@@ -161,32 +161,33 @@ GOOS=darwin GOARCH=amd64 go build -ldflags="-s -w" -o dist/lanx-darwin-amd64 ./c
 
 ---
 
-## Troubleshooting
+## Panduan Pemecahan Masalah
 
-### Devices Not Discoverable
+### Perangkat Tidak Saling Terdeteksi
 
-- Verify that all machines are connected to the same subnet and AP isolation (client isolation) is disabled on your Wi-Fi router.
-- Ensure that UDP port 5353 (mDNS) is not blocked by local software firewalls (Windows Defender, UFW, or pf).
-- If multicast discovery is restricted on your network, access the target machine directly using its IP address and port in your browser.
+- Pastikan semua perangkat terhubung ke router atau hotspot Wi-Fi yang sama.
+- Pastikan fitur AP Isolation (Client Isolation) pada router dalam keadaan dinonaktifkan.
+- Periksa bahwa port UDP 5353 (mDNS) tidak diblokir oleh firewall sistem (Windows Defender, UFW, atau pf).
+- Jika mDNS tidak didukung oleh jaringan, perangkat tetap dapat dihubungkan langsung dengan membuka alamat IP dan port perangkat tujuan melalui peramban.
 
-### Transfer Failures
+### Transfer Berkas Gagal
 
-- Confirm that write permissions exist on the download directory.
-- Ensure adequate disk storage is available for incoming payloads.
-
----
-
-## Technical Specifications
-
-- Core Runtime: Go (Golang)
-- Web Server: Go `net/http` standard library
-- Network Discovery: Multicast DNS (`grandcat/zeroconf`)
-- WebSocket Implementation: `coder/websocket`
-- QR Generation: `skip2/go-qrcode`
-- Frontend: Embedded standards-compliant HTML5, CSS3, and ES6 JavaScript (No external CDN dependencies)
+- Pastikan ruang penyimpanan pada perangkat penerima mencukupi.
+- Pastikan folder tujuan memiliki izin akses tulis (*write permissions*).
 
 ---
 
-## License
+## Spesifikasi Teknis
 
-This project is licensed under the MIT License.
+- Bahasa Pemrograman: Go (Golang)
+- Server HTTP: Go `net/http` standard library
+- Penemuan Jaringan: Multicast DNS (`grandcat/zeroconf`)
+- Implementasi WebSocket: `coder/websocket`
+- Pembuat QR Code: `skip2/go-qrcode`
+- Antarmuka Frontend: HTML5, CSS3, dan JavaScript murni (Vanilla JS) tanpa ketergantungan CDN eksternal
+
+---
+
+## Lisensi
+
+Proyek ini dilisensikan di bawah lisensi MIT.
