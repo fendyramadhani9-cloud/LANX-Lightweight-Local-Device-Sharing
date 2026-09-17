@@ -5,7 +5,9 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"net"
 	"net/http"
+	"strings"
 	"sync"
 	"time"
 
@@ -58,8 +60,21 @@ func (m *Manager) handleQR(w http.ResponseWriter, r *http.Request) {
 	// Generate new token
 	token := m.generateToken()
 
-	// Build pairing URL
-	ip := server.GetLocalIP()
+	// Build pairing URL: prefer incoming Host header if it's an accessible LAN address
+	ip := ""
+	if r.Host != "" {
+		host, _, err := net.SplitHostPort(r.Host)
+		if err != nil {
+			host = r.Host
+		}
+		if host != "localhost" && host != "127.0.0.1" && host != "::1" && !strings.HasPrefix(host, "169.254.") {
+			ip = host
+		}
+	}
+	if ip == "" {
+		ip = server.GetLocalIP()
+	}
+
 	pairURL := fmt.Sprintf("http://%s:%d/pair?token=%s", ip, m.port, token.Token)
 
 	// Generate QR code

@@ -139,15 +139,25 @@ func (d *Discovery) handleEntry(entry *zeroconf.ServiceEntry) {
 		return
 	}
 
-	// Get IPv4 address
+	// Get IPv4 address, filtering out loopback and APIPA (169.254.x.x)
 	ip := ""
 	for _, addr := range entry.AddrIPv4 {
+		if addr.IsLoopback() || addr.IsLinkLocalUnicast() {
+			continue
+		}
+		ip4 := addr.To4()
+		if ip4 != nil && (ip4[0] == 169 && ip4[1] == 254) {
+			continue
+		}
 		ip = addr.String()
 		break
 	}
 	if ip == "" {
 		// Try IPv6
 		for _, addr := range entry.AddrIPv6 {
+			if addr.IsLoopback() || addr.IsLinkLocalUnicast() {
+				continue
+			}
 			ip = addr.String()
 			break
 		}

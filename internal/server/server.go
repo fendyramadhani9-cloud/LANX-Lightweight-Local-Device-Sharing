@@ -84,39 +84,38 @@ func (s *Server) withMiddleware(next http.Handler) http.Handler {
 }
 
 func (s *Server) printBanner() {
-	ip := getLocalIP()
+	primaryIP := GetLocalIP()
+	allIPs := GetAllLocalIPs()
+
 	fmt.Println()
 	fmt.Println("  \033[1mLANX\033[0m")
 	fmt.Println()
 	fmt.Println("  Local sharing server started")
 	fmt.Println()
-	fmt.Printf("  Local:\n")
-	fmt.Printf("  \033[36mhttp://%s:%d\033[0m\n", ip, s.cfg.Port)
+	fmt.Printf("  Local Network:\n")
+	fmt.Printf("  \033[36mhttp://%s:%d\033[0m\n", primaryIP, s.cfg.Port)
+	fmt.Printf("  \033[90mhttp://localhost:%d\033[0m\n", s.cfg.Port)
+
+	printed := map[string]bool{primaryIP: true, "127.0.0.1": true}
+	var alts []string
+	for _, info := range allIPs {
+		if !printed[info.IP] {
+			printed[info.IP] = true
+			alts = append(alts, fmt.Sprintf("http://%s:%d (%s)", info.IP, s.cfg.Port, info.InterfaceName))
+		}
+	}
+	if len(alts) > 0 {
+		fmt.Printf("\n  Alternative Network Addresses:\n")
+		for _, alt := range alts {
+			fmt.Printf("  \033[90m%s\033[0m\n", alt)
+		}
+	}
+
 	fmt.Println()
 	fmt.Printf("  Device: %s\n", s.cfg.DeviceName)
 	fmt.Println()
 	fmt.Println("  Waiting for devices...")
 	fmt.Println()
-}
-
-func getLocalIP() string {
-	addrs, err := net.InterfaceAddrs()
-	if err != nil {
-		return "127.0.0.1"
-	}
-	for _, addr := range addrs {
-		if ipNet, ok := addr.(*net.IPNet); ok && !ipNet.IP.IsLoopback() {
-			if ipNet.IP.To4() != nil {
-				return ipNet.IP.String()
-			}
-		}
-	}
-	return "127.0.0.1"
-}
-
-// GetLocalIP exports local IP for use by other packages.
-func GetLocalIP() string {
-	return getLocalIP()
 }
 
 type loggingResponseWriter struct {
