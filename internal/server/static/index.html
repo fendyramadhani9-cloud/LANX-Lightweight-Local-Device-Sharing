@@ -1,0 +1,342 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="LANX — Share files, text, and clipboard across devices on your local network. No internet required.">
+    <title>LANX — Local Device Sharing</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+    <!-- Header -->
+    <header class="header" id="header">
+        <div class="header-inner">
+            <div class="header-brand">
+                <svg class="header-logo" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <rect width="32" height="32" rx="8" fill="var(--color-primary)"/>
+                    <path d="M8 16L14 10V14H20V18H14V22L8 16Z" fill="white"/>
+                    <path d="M24 16L18 22V18H16V14H18V10L24 16Z" fill="white" opacity="0.6"/>
+                </svg>
+                <h1 class="header-title">LANX</h1>
+            </div>
+            <div class="header-actions">
+                <button class="btn-icon" id="btn-pair" title="Pair device" aria-label="Pair device">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <rect x="2" y="2" width="8" height="8" rx="1"/>
+                        <rect x="14" y="2" width="8" height="8" rx="1"/>
+                        <rect x="2" y="14" width="8" height="8" rx="1"/>
+                        <rect x="14" y="14" width="8" height="8" rx="1"/>
+                    </svg>
+                </button>
+                <button class="btn-icon" id="btn-settings" title="Settings" aria-label="Settings">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <circle cx="12" cy="12" r="3"/>
+                        <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+                    </svg>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="main" id="main">
+        <!-- Hero Section -->
+        <section class="hero">
+            <h2 class="hero-title">Share files locally</h2>
+            <p class="hero-subtitle">Send files directly to devices on your LAN. No internet required.</p>
+        </section>
+
+        <!-- Tab Navigation -->
+        <nav class="tabs" id="tabs">
+            <button class="tab active" data-tab="files" id="tab-files">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/>
+                    <polyline points="13 2 13 9 20 9"/>
+                </svg>
+                Files
+            </button>
+            <button class="tab" data-tab="text" id="tab-text">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <line x1="17" y1="10" x2="3" y2="10"/>
+                    <line x1="21" y1="6" x2="3" y2="6"/>
+                    <line x1="21" y1="14" x2="3" y2="14"/>
+                    <line x1="17" y1="18" x2="3" y2="18"/>
+                </svg>
+                Text
+            </button>
+            <button class="tab" data-tab="clipboard" id="tab-clipboard">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/>
+                    <rect x="8" y="2" width="8" height="4" rx="1" ry="1"/>
+                </svg>
+                Clipboard
+            </button>
+        </nav>
+
+        <!-- Tab Panels -->
+        <div class="tab-panels">
+            <!-- Files Panel -->
+            <div class="tab-panel active" id="panel-files">
+                <!-- Drop Zone -->
+                <div class="drop-zone" id="drop-zone">
+                    <div class="drop-zone-content">
+                        <svg class="drop-zone-icon" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                            <polyline points="17 8 12 3 7 8"/>
+                            <line x1="12" y1="3" x2="12" y2="15"/>
+                        </svg>
+                        <p class="drop-zone-text">Drop files here</p>
+                        <p class="drop-zone-hint">or click to browse</p>
+                    </div>
+                    <input type="file" id="file-input" multiple hidden>
+                </div>
+
+                <!-- Active Transfers -->
+                <div class="section" id="active-transfers-section" style="display: none;">
+                    <h3 class="section-title">Transferring</h3>
+                    <div class="transfer-list" id="active-transfers"></div>
+                </div>
+            </div>
+
+            <!-- Text Panel -->
+            <div class="tab-panel" id="panel-text">
+                <div class="text-share">
+                    <textarea class="text-input" id="text-input" placeholder="Write something to share..." rows="6"></textarea>
+                    <div class="text-actions">
+                        <div class="device-select-wrapper">
+                            <label class="device-select-label">Send to:</label>
+                            <select class="device-select" id="text-device-select">
+                                <option value="">Select a device</option>
+                            </select>
+                        </div>
+                        <button class="btn btn-primary" id="btn-send-text" disabled>
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <line x1="22" y1="2" x2="11" y2="13"/>
+                                <polygon points="22 2 15 22 11 13 2 9 22 2"/>
+                            </svg>
+                            Send
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Received Texts -->
+                <div class="section" id="received-texts-section" style="display: none;">
+                    <h3 class="section-title">Received</h3>
+                    <div class="received-list" id="received-texts"></div>
+                </div>
+            </div>
+
+            <!-- Clipboard Panel -->
+            <div class="tab-panel" id="panel-clipboard">
+                <div class="clipboard-share">
+                    <div class="clipboard-input-group">
+                        <textarea class="text-input" id="clipboard-input" placeholder="Paste or type content..." rows="4"></textarea>
+                        <button class="btn btn-ghost btn-sm" id="btn-paste-clipboard" title="Paste from clipboard">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/>
+                                <rect x="8" y="2" width="8" height="4" rx="1" ry="1"/>
+                            </svg>
+                            Paste
+                        </button>
+                    </div>
+                    <div class="text-actions">
+                        <div class="device-select-wrapper">
+                            <label class="device-select-label">Send to:</label>
+                            <select class="device-select" id="clipboard-device-select">
+                                <option value="">Select a device</option>
+                            </select>
+                        </div>
+                        <button class="btn btn-primary" id="btn-send-clipboard" disabled>
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <line x1="22" y1="2" x2="11" y2="13"/>
+                                <polygon points="22 2 15 22 11 13 2 9 22 2"/>
+                            </svg>
+                            Send
+                        </button>
+                    </div>
+                    <div class="clipboard-notice" id="clipboard-notice" style="display: none;">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <circle cx="12" cy="12" r="10"/>
+                            <line x1="12" y1="16" x2="12" y2="12"/>
+                            <line x1="12" y1="8" x2="12.01" y2="8"/>
+                        </svg>
+                        <span>Clipboard access requires browser permission.</span>
+                    </div>
+                </div>
+
+                <!-- Received Clipboard -->
+                <div class="section" id="received-clipboard-section" style="display: none;">
+                    <h3 class="section-title">Received</h3>
+                    <div class="received-list" id="received-clipboard"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Nearby Devices -->
+        <section class="section" id="devices-section">
+            <h3 class="section-title">Nearby devices</h3>
+            <div class="devices-grid" id="devices-grid">
+                <div class="empty-state" id="devices-empty">
+                    <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" opacity="0.4">
+                        <rect x="2" y="3" width="20" height="14" rx="2" ry="2"/>
+                        <line x1="8" y1="21" x2="16" y2="21"/>
+                        <line x1="12" y1="17" x2="12" y2="21"/>
+                    </svg>
+                    <p class="empty-state-text">No LANX devices found</p>
+                    <p class="empty-state-hint">Make sure both devices are connected to the same local network.</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- Recent Transfers -->
+        <section class="section" id="history-section">
+            <h3 class="section-title">Recent transfers</h3>
+            <div class="transfer-history" id="transfer-history">
+                <div class="empty-state" id="history-empty">
+                    <p class="empty-state-text">No transfers yet</p>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <!-- Settings Modal -->
+    <div class="modal-overlay" id="settings-modal" style="display: none;">
+        <div class="modal">
+            <div class="modal-header">
+                <h2 class="modal-title">Settings</h2>
+                <button class="btn-icon" id="btn-close-settings" aria-label="Close settings">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <line x1="18" y1="6" x2="6" y2="18"/>
+                        <line x1="6" y1="6" x2="18" y2="18"/>
+                    </svg>
+                </button>
+            </div>
+            <div class="modal-body">
+                <div class="settings-group">
+                    <h4 class="settings-group-title">Device</h4>
+                    <div class="settings-field">
+                        <label class="settings-label" for="setting-device-name">Device name</label>
+                        <input type="text" class="settings-input" id="setting-device-name" maxlength="64">
+                    </div>
+                </div>
+                <div class="settings-group">
+                    <h4 class="settings-group-title">Appearance</h4>
+                    <div class="settings-field">
+                        <div class="theme-toggle">
+                            <label class="theme-option">
+                                <input type="radio" name="theme" value="light" id="theme-light">
+                                <span class="theme-option-label">
+                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                        <circle cx="12" cy="12" r="5"/>
+                                        <line x1="12" y1="1" x2="12" y2="3"/>
+                                        <line x1="12" y1="21" x2="12" y2="23"/>
+                                        <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/>
+                                        <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/>
+                                        <line x1="1" y1="12" x2="3" y2="12"/>
+                                        <line x1="21" y1="12" x2="23" y2="12"/>
+                                        <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/>
+                                        <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/>
+                                    </svg>
+                                    Light
+                                </span>
+                            </label>
+                            <label class="theme-option">
+                                <input type="radio" name="theme" value="dark" id="theme-dark">
+                                <span class="theme-option-label">
+                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                        <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
+                                    </svg>
+                                    Dark
+                                </span>
+                            </label>
+                        </div>
+                    </div>
+                </div>
+                <div class="settings-group">
+                    <h4 class="settings-group-title">Security</h4>
+                    <div class="settings-field settings-toggle-field">
+                        <label class="settings-label" for="setting-pairing">Pairing required</label>
+                        <label class="toggle">
+                            <input type="checkbox" id="setting-pairing">
+                            <span class="toggle-slider"></span>
+                        </label>
+                    </div>
+                </div>
+                <div class="settings-group">
+                    <h4 class="settings-group-title">About</h4>
+                    <div class="settings-field">
+                        <p class="settings-about">LANX v<span id="settings-version">1.0.0</span></p>
+                        <p class="settings-about-sub">Share locally. Stay private.</p>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-primary" id="btn-save-settings">Save</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Pair Modal -->
+    <div class="modal-overlay" id="pair-modal" style="display: none;">
+        <div class="modal">
+            <div class="modal-header">
+                <h2 class="modal-title">Connect device</h2>
+                <button class="btn-icon" id="btn-close-pair" aria-label="Close pairing">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <line x1="18" y1="6" x2="6" y2="18"/>
+                        <line x1="6" y1="6" x2="18" y2="18"/>
+                    </svg>
+                </button>
+            </div>
+            <div class="modal-body" style="text-align: center;">
+                <p class="pair-instruction">Scan this QR code from another device</p>
+                <div class="qr-container" id="qr-container">
+                    <div class="qr-loading">Generating QR code...</div>
+                </div>
+                <p class="pair-url" id="pair-url"></p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Pair Request Modal -->
+    <div class="modal-overlay" id="pair-request-modal" style="display: none;">
+        <div class="modal modal-sm">
+            <div class="modal-header">
+                <h2 class="modal-title">Pair Request</h2>
+            </div>
+            <div class="modal-body" style="text-align: center;">
+                <p><strong id="pair-request-device">Unknown device</strong> wants to connect.</p>
+            </div>
+            <div class="modal-footer" style="justify-content: center; gap: 12px;">
+                <button class="btn btn-ghost" id="btn-reject-pair">Reject</button>
+                <button class="btn btn-primary" id="btn-accept-pair">Accept</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast Container -->
+    <div class="toast-container" id="toast-container"></div>
+
+    <!-- Incoming File/Text Modal -->
+    <div class="modal-overlay" id="incoming-modal" style="display: none;">
+        <div class="modal modal-sm">
+            <div class="modal-header">
+                <h2 class="modal-title" id="incoming-title">Incoming</h2>
+            </div>
+            <div class="modal-body" id="incoming-body"></div>
+            <div class="modal-footer" style="justify-content: center; gap: 12px;">
+                <button class="btn btn-ghost" id="btn-reject-incoming">Dismiss</button>
+                <button class="btn btn-primary" id="btn-accept-incoming">Accept</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="/js/app.js"></script>
+    <script src="/js/devices.js"></script>
+    <script src="/js/transfer.js"></script>
+    <script src="/js/clipboard.js"></script>
+</body>
+</html>
