@@ -68,10 +68,12 @@ func (fs *FileStore) Get(id string) (*StoredFile, bool) {
 
 // Handler provides HTTP handlers for file upload/download.
 type Handler struct {
-	mgr         *Manager
-	store       *FileStore
-	downloadDir string
+	mgr             *Manager
+	store           *FileStore
+	downloadDir     string
 	onTransferEvent func(eventType string, data any)
+	mailbox         *Mailbox
+	isOnline        func(id string) bool
 }
 
 // NewHandler creates a new transfer handler.
@@ -82,6 +84,12 @@ func NewHandler(mgr *Manager, downloadDir string, onEvent func(string, any)) *Ha
 		downloadDir:     downloadDir,
 		onTransferEvent: onEvent,
 	}
+}
+
+// SetMailbox configures offline mailbox queue and online status checker.
+func (h *Handler) SetMailbox(mb *Mailbox, isOnline func(id string) bool) {
+	h.mailbox = mb
+	h.isOnline = isOnline
 }
 
 // RegisterRoutes registers transfer-related routes on the given mux.
@@ -203,6 +211,19 @@ func (h *Handler) handleUpload(w http.ResponseWriter, r *http.Request) {
 	// Mark complete
 	h.mgr.Complete(t.ID, downloadID)
 
+	// Queue in mailbox if target device is currently offline
+	offlineQueued := false
+	if targetDeviceID != "" && targetDeviceID != "all" && h.mailbox != nil {
+		targetOnline := true
+		if h.isOnline != nil {
+			targetOnline = h.isOnline(targetDeviceID)
+		}
+		if !targetOnline {
+			h.mailbox.AddFile(t.ID, downloadID, filename, written, targetDeviceID, senderID, senderName)
+			offlineQueued = true
+		}
+	}
+
 	// Broadcast completion
 	if h.onTransferEvent != nil {
 		h.onTransferEvent("transfer_complete", map[string]any{
@@ -214,14 +235,16 @@ func (h *Handler) handleUpload(w http.ResponseWriter, r *http.Request) {
 			"sender_id":        senderID,
 			"from_device":      senderName,
 			"download_url":     fmt.Sprintf("/api/download/%s", downloadID),
+			"offline_queued":   offlineQueued,
 		})
 	}
 
 	writeJSON(w, http.StatusOK, map[string]any{
-		"transfer_id": t.ID,
-		"download_id": downloadID,
-		"filename":    filename,
-		"size":        written,
+		"transfer_id":    t.ID,
+		"download_id":    downloadID,
+		"filename":       filename,
+		"size":           written,
+		"offline_queued": offlineQueued,
 	})
 }
 
@@ -350,6 +373,19 @@ func (h *Handler) handleUploadFolder(w http.ResponseWriter, r *http.Request) {
 	// Complete transfer
 	h.mgr.Complete(t.ID, downloadID)
 
+	// Queue in mailbox if target device is currently offline
+	offlineQueued := false
+	if targetDeviceID != "" && targetDeviceID != "all" && h.mailbox != nil {
+		targetOnline := true
+		if h.isOnline != nil {
+			targetOnline = h.isOnline(targetDeviceID)
+		}
+		if !targetOnline {
+			h.mailbox.AddFile(t.ID, downloadID, folderName, zipSize, targetDeviceID, senderID, senderName)
+			offlineQueued = true
+		}
+	}
+
 	if h.onTransferEvent != nil {
 		h.onTransferEvent("transfer_complete", map[string]any{
 			"transfer_id":      t.ID,
@@ -360,14 +396,16 @@ func (h *Handler) handleUploadFolder(w http.ResponseWriter, r *http.Request) {
 			"sender_id":        senderID,
 			"from_device":      senderName,
 			"download_url":     fmt.Sprintf("/api/download/%s", downloadID),
+			"offline_queued":   offlineQueued,
 		})
 	}
 
 	writeJSON(w, http.StatusOK, map[string]any{
-		"transfer_id": t.ID,
-		"download_id": downloadID,
-		"filename":    folderName,
-		"size":        zipSize,
+		"transfer_id":    t.ID,
+		"download_id":    downloadID,
+		"filename":       folderName,
+		"size":           zipSize,
+		"offline_queued": offlineQueued,
 	})
 }
 

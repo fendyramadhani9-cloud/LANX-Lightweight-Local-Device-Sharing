@@ -8,13 +8,14 @@ Seluruh antarmuka web modern dikompilasi langsung ke dalam satu berkas biner man
 
 ## Fitur Unggulan
 
+- 📬 **Kotak Masuk / Offline Queue (Store-and-Forward)**: Tetap bisa mengirim berkas, tugas, folder, atau teks ke komputer mana pun yang terdaftar meski komputer tujuan sedang **mati atau offline**. Berkas disimpan aman di server, dan begitu komputer tujuan menyala / terhubung ke LANX, semua berkas langsung otomatis terkirim dan terunduh!
 - ⚡ **Auto-Accept / Auto-Download**: Opsi untuk otomatis mengunduh berkas langsung ke folder `Downloads` laptop/PC tanpa perlu mengeklik tombol unduh setiap saat.
 - 👁️ **In-Browser Media Preview (Lightbox Viewer)**: Pratinjau foto resolusi penuh, pemutar video native (`.mp4`, `.webm`, `.mov`), pemutar audio musik (`.mp3`, `.wav`, `.m4a`), dokumen PDF, dan file teks/kode (`.txt`, `.json`, `.md`) langsung di peramban tanpa harus membuka folder download.
 - 📸 **Kamera Cepat / Instant Photo Shot (Khusus Mobile)**: Tombol kamera instan di ponsel untuk memotret catatan fisik/papan tulis dan langsung otomatis terkirim ke komputer target.
 - 📁 **Kirim Folder Utuh (Auto-Zip)**: Tarik (drag & drop) atau pilih seluruh folder berstruktur sub-folder. Sistem otomatis mengemasnya secara streaming menjadi berkas `.zip`.
 - 🚀 **Speedometer & Estimasi Waktu Nyata (ETA)**: Tampilan kecepatan transfer real-time (`24.5 MB/s`) dan sisa waktu transfer (`sisa 12 dtk`) dengan peredaman *Exponential Moving Average (EMA)*.
 - 📢 **Mode Pengiriman Fleksibel**:
-  - **1 per 1 Device**: Kirim berkas/teks khusus ke satu perangkat tertentu.
+  - **1 per 1 Device**: Kirim berkas/teks khusus ke satu perangkat tertentu (baik online maupun offline).
   - **Semua Device (All)**: Siarkan materi, tugas, berkas, atau catatan ke seluruh perangkat yang terhubung serentak dalam satu klik.
 - 🏷️ **Profil Perangkat & Ganti Nama Permanen**: Setiap perangkat dapat dinamai sendiri (misal: "Laptop Guru", "PC-Lab-01") dan tersimpan permanen di database lokal (`~/.lanx/devices.json`).
 - 📋 **Sinkronisasi Teks & Papan Klip (Clipboard)**: Kirim teks, tautan, atau pesan cepat antar-perangkat dengan sekali klik.

@@ -89,13 +89,17 @@ const Clipboard = {
             });
 
             if (res.ok) {
-                const toastMsg = deviceId === 'all' ? 'Teks berhasil disiarkan ke Semua Perangkat!' : 'Teks berhasil terkirim!';
+                const data = await res.json().catch(() => ({}));
+                let toastMsg = deviceId === 'all' ? 'Teks berhasil disiarkan ke Semua Perangkat!' : 'Teks berhasil terkirim!';
+                if (data.offline_queued) {
+                    toastMsg = '📬 Teks tersimpan di server! Akan otomatis masuk saat perangkat online.';
+                }
                 LANX.showToast(toastMsg, 'success');
                 input.value = '';
                 const sendBtn = document.getElementById('btn-send-text');
                 if (sendBtn) sendBtn.disabled = true;
             } else {
-                const data = await res.json();
+                const data = await res.json().catch(() => ({}));
                 LANX.showToast(data.error || 'Gagal mengirim teks', 'error');
             }
         } catch (e) {
@@ -108,8 +112,14 @@ const Clipboard = {
     handleTextReceived(msg) {
         const isBroadcast = msg.target_device_id === 'all';
         const senderName = msg.from_device || 'Perangkat Lain';
-        this.addReceivedItem(senderName + (isBroadcast ? ' (Siaran)' : ''), msg.text);
-        LANX.showToast(`Pesan baru dari ${senderName}${isBroadcast ? ' [Semua Perangkat]' : ''}`, 'info');
+        const isOffline = !!msg.is_offline_queue;
+        const suffix = isOffline ? ' (Kotak Masuk)' : (isBroadcast ? ' (Siaran)' : '');
+        this.addReceivedItem(senderName + suffix, msg.text);
+        if (isOffline) {
+            LANX.showToast(`📬 Pesan dari ${senderName} (dikirim saat Anda offline)`, 'info');
+        } else {
+            LANX.showToast(`Pesan baru dari ${senderName}${isBroadcast ? ' [Semua Perangkat]' : ''}`, 'info');
+        }
     },
 
     handleClipboardReceived(msg) {

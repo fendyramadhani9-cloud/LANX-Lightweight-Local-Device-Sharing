@@ -626,16 +626,26 @@ const LANX = {
         const canPreview = typeof Transfer !== 'undefined' && Transfer.isPreviewable(msg.filename);
 
         let badgeText = isBroadcast ? '📢 Siaran ke Semua' : '🎯 Berkas Diterima';
-        if (autoDownloaded) {
+        let badgeBg = 'rgba(26,115,232,0.15)';
+        let badgeColor = 'var(--color-primary)';
+
+        if (msg.is_offline_queue) {
+            badgeText = autoDownloaded ? '⚡ Masuk dari Kotak Masuk (Terunduh)' : '📬 Masuk dari Kotak Masuk Offline';
+            badgeBg = 'rgba(245,158,11,0.18)';
+            badgeColor = '#d97706';
+        } else if (autoDownloaded) {
             badgeText = '⚡ Terunduh Otomatis';
+            badgeBg = 'rgba(16,185,129,0.15)';
+            badgeColor = '#10b981';
         }
 
         toast.innerHTML = `
             <div style="margin-bottom: 8px;">
-                <span style="font-size: 0.75rem; background: ${autoDownloaded ? 'rgba(16,185,129,0.15)' : 'rgba(26,115,232,0.15)'}; color: ${autoDownloaded ? '#10b981' : 'var(--color-primary)'}; padding: 1px 6px; border-radius: 4px; font-weight: 600; display: inline-block; margin-bottom: 4px;">
+                <span style="font-size: 0.75rem; background: ${badgeBg}; color: ${badgeColor}; padding: 1px 6px; border-radius: 4px; font-weight: 600; display: inline-block; margin-bottom: 4px;">
                     ${badgeText}
                 </span>
                 <div>${fromDevice}: <strong>${this.escapeHtml(msg.filename)}</strong> (${this.formatSize(msg.size)})</div>
+                ${msg.is_offline_queue ? '<div style="font-size: 0.75rem; color: var(--color-text-tertiary); margin-top: 2px;">(Dikirim saat perangkat ini sedang offline)</div>' : ''}
             </div>
             <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
                 ${canPreview ? `

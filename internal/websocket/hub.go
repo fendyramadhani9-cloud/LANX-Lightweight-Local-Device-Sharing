@@ -122,6 +122,51 @@ func (h *Hub) ClientCount() int {
 	return len(h.clients)
 }
 
+// IsDeviceOnline checks if a device with deviceID is currently connected.
+func (h *Hub) IsDeviceOnline(deviceID string) bool {
+	if deviceID == "" || deviceID == "all" {
+		return true
+	}
+	h.mu.RLock()
+	defer h.mu.RUnlock()
+	for c := range h.clients {
+		if c.deviceID == deviceID {
+			return true
+		}
+	}
+	return false
+}
+
+// SendToDevice sends a message specifically to a client with the given deviceID.
+func (h *Hub) SendToDevice(deviceID string, msgType string, data any) bool {
+	payload := make(map[string]any)
+	if m, ok := data.(map[string]any); ok {
+		for k, v := range m {
+			payload[k] = v
+		}
+	} else {
+		payload["data"] = data
+	}
+	payload["type"] = msgType
+
+	jsonData, err := json.Marshal(payload)
+	if err != nil {
+		h.logger.Printf("Failed to marshal message to device: %v", err)
+		return false
+	}
+
+	h.mu.RLock()
+	defer h.mu.RUnlock()
+	sent := false
+	for c := range h.clients {
+		if c.deviceID == deviceID {
+			c.send(jsonData)
+			sent = true
+		}
+	}
+	return sent
+}
+
 func (h *Hub) register(c *Client) {
 	h.mu.Lock()
 	h.clients[c] = struct{}{}

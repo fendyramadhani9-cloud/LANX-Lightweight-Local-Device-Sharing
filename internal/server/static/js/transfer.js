@@ -223,7 +223,9 @@ const Transfer = {
     },
 
     showDevicePicker(files, isFolder = false, folderName = '') {
-        const devices = Devices.devices.filter(d => d.online !== false);
+        const visible = (typeof Devices !== 'undefined') ? Devices.getVisibleDevices() : [];
+        const onlineDevices = visible.filter(d => d.online !== false);
+        const offlineDevices = visible.filter(d => d.online === false);
 
         const overlay = document.createElement('div');
         overlay.className = 'device-picker-overlay';
@@ -237,12 +239,12 @@ const Transfer = {
                         <div class="device-picker-broadcast-desc">Siarkan ${isFolder ? 'folder' : 'berkas'} ini ke seluruh perangkat yang terhubung</div>
                     </div>
                 </div>
-                ${devices.length > 0 ? `
-                    <div style="font-size: var(--font-size-xs); font-weight: 600; color: var(--color-text-secondary); margin-bottom: 8px; text-transform: uppercase;">Atau pilih perangkat tertentu:</div>
+                ${onlineDevices.length > 0 ? `
+                    <div style="font-size: var(--font-size-xs); font-weight: 600; color: var(--color-text-secondary); margin: 8px 0 6px 0; text-transform: uppercase;">Perangkat Online (${onlineDevices.length}):</div>
                     <div class="device-picker-list">
-                        ${devices.map(d => `
+                        ${onlineDevices.map(d => `
                             <div class="device-card" data-device-id="${d.id}">
-                                <div class="device-card-icon">${Devices.getDeviceIcon(d.name)}</div>
+                                <div class="device-card-icon">${Devices.getDeviceIcon(d.name, d.platform)}</div>
                                 <div class="device-card-info">
                                     <div class="device-card-name">${LANX.escapeHtml(d.name)}</div>
                                     <div class="device-card-status">
@@ -252,9 +254,27 @@ const Transfer = {
                             </div>
                         `).join('')}
                     </div>
-                ` : `
-                    <p style="text-align: center; color: var(--color-text-tertiary); font-size: var(--font-size-sm); margin: 16px 0;">Belum ada perangkat lain terhubung. Anda tetap dapat menyiarkan ke Semua Perangkat.</p>
-                `}
+                ` : ''}
+                ${offlineDevices.length > 0 ? `
+                    <div style="font-size: var(--font-size-xs); font-weight: 600; color: var(--color-text-secondary); margin: 12px 0 6px 0; text-transform: uppercase;">📬 Kotak Masuk Offline (${offlineDevices.length}):</div>
+                    <div class="device-picker-list">
+                        ${offlineDevices.map(d => `
+                            <div class="device-card offline-device" data-device-id="${d.id}">
+                                <div class="device-card-icon">${Devices.getDeviceIcon(d.name, d.platform)}</div>
+                                <div class="device-card-info">
+                                    <div class="device-card-name">${LANX.escapeHtml(d.name)}</div>
+                                    <div class="device-card-status">
+                                        <span class="status-dot offline"></span> Offline
+                                        <span class="mailbox-pill">📬 Kotak Masuk</span>
+                                    </div>
+                                </div>
+                            </div>
+                        `).join('')}
+                    </div>
+                ` : ''}
+                ${visible.length === 0 ? `
+                    <p style="text-align: center; color: var(--color-text-tertiary); font-size: var(--font-size-sm); margin: 16px 0;">Belum ada perangkat lain terdaftar. Anda tetap dapat menyiarkan ke Semua Perangkat.</p>
+                ` : ''}
                 <button class="btn btn-ghost" style="width: 100%; margin-top: 12px;" id="cancel-picker">Batal</button>
             </div>
         `;
@@ -363,13 +383,21 @@ const Transfer = {
             xhr.addEventListener('load', () => {
                 const item = this.activeTransfers[transferId];
                 if (xhr.status >= 200 && xhr.status < 300) {
+                    let resData = null;
+                    try { resData = JSON.parse(xhr.responseText); } catch (e) {}
+
                     if (item) {
                         item.status = 'completed';
                         item.percentage = 100;
                         item.speed = 0;
                         item.eta = null;
                     }
-                    LANX.showToast(`${file.name} berhasil terkirim`, 'success');
+
+                    if (resData && resData.offline_queued) {
+                        LANX.showToast(`📦 Berkas tersimpan di server! Akan otomatis masuk saat ${targetDisplayName} online.`, 'info');
+                    } else {
+                        LANX.showToast(`${file.name} berhasil terkirim`, 'success');
+                    }
                 } else {
                     if (item) item.status = 'failed';
                     LANX.showToast(`Gagal mengirim ${file.name}`, 'error');
@@ -474,13 +502,21 @@ const Transfer = {
             xhr.addEventListener('load', () => {
                 const item = this.activeTransfers[transferId];
                 if (xhr.status >= 200 && xhr.status < 300) {
+                    let resData = null;
+                    try { resData = JSON.parse(xhr.responseText); } catch (e) {}
+
                     if (item) {
                         item.status = 'completed';
                         item.percentage = 100;
                         item.speed = 0;
                         item.eta = null;
                     }
-                    LANX.showToast(`Folder "${folderName}" berhasil dikemas & dikirim!`, 'success');
+
+                    if (resData && resData.offline_queued) {
+                        LANX.showToast(`📦 Folder "${folderName}" tersimpan di server! Akan otomatis masuk saat ${targetDisplayName} online.`, 'info');
+                    } else {
+                        LANX.showToast(`Folder "${folderName}" berhasil dikemas & dikirim!`, 'success');
+                    }
                 } else {
                     if (item) item.status = 'failed';
                     LANX.showToast(`Gagal mengirim folder ${folderName}`, 'error');

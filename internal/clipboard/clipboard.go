@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/fendy/lanx/internal/device"
+	"github.com/fendy/lanx/internal/transfer"
 )
 
 const (
@@ -22,6 +23,7 @@ type Handler struct {
 	deviceID   string
 	deviceName string
 	onEvent    func(string, any)
+	mailbox    *transfer.Mailbox
 }
 
 // NewHandler creates a new clipboard/text handler.
@@ -32,6 +34,11 @@ func NewHandler(registry *device.Registry, deviceID, deviceName string, onEvent 
 		deviceName: deviceName,
 		onEvent:    onEvent,
 	}
+}
+
+// SetMailbox configures offline mailbox queue for text messages.
+func (h *Handler) SetMailbox(mb *transfer.Mailbox) {
+	h.mailbox = mb
 }
 
 // RegisterRoutes registers text and clipboard endpoints.
@@ -105,8 +112,22 @@ func (h *Handler) handleSendText(w http.ResponseWriter, r *http.Request) {
 
 	// Find target device
 	dev, ok := h.registry.Get(req.TargetDeviceID)
-	if !ok || !dev.Online {
-		writeJSON(w, http.StatusNotFound, map[string]string{"error": "Device not found or offline"})
+	if !ok {
+		writeJSON(w, http.StatusNotFound, map[string]string{"error": "Perangkat tujuan tidak ditemukan"})
+		return
+	}
+
+	if !dev.Online {
+		if h.mailbox != nil {
+			h.mailbox.AddText(text, req.TargetDeviceID, fromID, fromDevice)
+			writeJSON(w, http.StatusOK, map[string]any{
+				"status":         "queued",
+				"offline_queued": true,
+				"message":        "Pesan disimpan di server dan akan terkirim saat perangkat online",
+			})
+			return
+		}
+		writeJSON(w, http.StatusNotFound, map[string]string{"error": "Perangkat sedang offline"})
 		return
 	}
 

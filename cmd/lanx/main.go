@@ -9,6 +9,7 @@ import (
 	"os/signal"
 	"path/filepath"
 	"syscall"
+	"time"
 
 	"github.com/fendy/lanx/internal/clipboard"
 	"github.com/fendy/lanx/internal/config"
@@ -87,6 +88,10 @@ func main() {
 		Platform: "desktop",
 	})
 
+	// Create mailbox for offline store-and-forward transfers
+	mailboxPath := filepath.Join(cfg.DataDir(), "mailbox.json")
+	mailbox := transfer.NewMailbox(mailboxPath)
+
 	// Register WebSocket client hooks for browser device discovery
 	wsHub.SetClientHooks(func(id, clientName, platform, ip string) {
 		if id == cfg.DeviceID {
@@ -101,6 +106,41 @@ func main() {
 			IsBrowser: true,
 			Platform:  platform,
 		})
+
+		// Flush any pending offline mailbox items for this device
+		pending := mailbox.GetPendingForDevice(id)
+		if len(pending) > 0 {
+			go func(targetID string, items []*transfer.MailboxItem) {
+				// Allow client UI to complete initial connection
+				time.Sleep(600 * time.Millisecond)
+				for _, it := range items {
+					if it.Type == "file" {
+						wsHub.SendToDevice(targetID, "transfer_complete", map[string]any{
+							"transfer_id":      it.TransferID,
+							"download_id":      it.DownloadID,
+							"filename":         it.Filename,
+							"size":             it.Size,
+							"target_device_id": it.TargetDeviceID,
+							"sender_id":        it.SenderID,
+							"from_device":      it.SenderName,
+							"download_url":     fmt.Sprintf("/api/download/%s", it.DownloadID),
+							"is_offline_queue": true,
+							"queued_at":        it.Timestamp,
+						})
+					} else if it.Type == "text" {
+						wsHub.SendToDevice(targetID, "text_received", map[string]any{
+							"target_device_id": it.TargetDeviceID,
+							"text":             it.TextContent,
+							"from_device":      it.SenderName,
+							"from_id":          it.SenderID,
+							"is_offline_queue": true,
+							"queued_at":        it.Timestamp,
+						})
+					}
+					mailbox.MarkDelivered(it.ID)
+				}
+			}(id, pending)
+		}
 	}, func(id string) {
 		if id == cfg.DeviceID {
 			return
@@ -124,6 +164,7 @@ func main() {
 	transferHandler := transfer.NewHandler(transferMgr, cfg.GetDownloadPath(), func(eventType string, data any) {
 		wsHub.Broadcast(eventType, data)
 	})
+	transferHandler.SetMailbox(mailbox, wsHub.IsDeviceOnline)
 
 	// Create pairing manager
 	pairingMgr := pairing.NewManager(cfg.Port, func(eventType string, data any) {
@@ -134,6 +175,7 @@ func main() {
 	clipHandler := clipboard.NewHandler(registry, cfg.DeviceID, cfg.DeviceName, func(eventType string, data any) {
 		wsHub.Broadcast(eventType, data)
 	})
+	clipHandler.SetMailbox(mailbox)
 
 	// Create HTTP server
 	srv := server.New(cfg, logger)

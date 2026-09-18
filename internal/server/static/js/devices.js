@@ -125,8 +125,9 @@ const Devices = {
         } else {
             // Mode single: if currently 'all', unselect or pick first visible device
             if (this.selectedDevice === 'all') {
-                const visible = this.getVisibleDevices().filter(d => d.online !== false);
-                this.selectedDevice = visible.length > 0 ? visible[0].id : null;
+                const visible = this.getVisibleDevices();
+                const online = visible.filter(d => d.online !== false);
+                this.selectedDevice = online.length > 0 ? online[0].id : (visible.length > 0 ? visible[0].id : null);
             }
         }
 
@@ -160,9 +161,15 @@ const Devices = {
             if (descTarget) descTarget.innerHTML = `Target: <strong>📢 Semua Perangkat (Siaran Massal)${countText}</strong>`;
         } else if (this.selectedDevice) {
             const dev = this.getDeviceById(this.selectedDevice);
+            const isOnline = dev && dev.online !== false;
             const name = dev ? dev.name : '1 Perangkat';
-            if (dropTarget) dropTarget.textContent = `🎯 ${name}`;
-            if (descTarget) descTarget.innerHTML = `Target: <strong>🎯 ${LANX.escapeHtml(name)}</strong>`;
+            if (isOnline) {
+                if (dropTarget) dropTarget.textContent = `🎯 ${name}`;
+                if (descTarget) descTarget.innerHTML = `Target: <strong>🎯 ${LANX.escapeHtml(name)}</strong>`;
+            } else {
+                if (dropTarget) dropTarget.textContent = `📬 ${name} (Kotak Masuk Server)`;
+                if (descTarget) descTarget.innerHTML = `Target: <strong>📬 ${LANX.escapeHtml(name)}</strong> <span class="offline-target-note">(Offline — Otomatis masuk saat online)</span>`;
+            }
         } else {
             if (dropTarget) dropTarget.textContent = 'Pilih perangkat tujuan di bawah';
             if (descTarget) descTarget.innerHTML = `Target: <em>Belum dipilih (Klik perangkat di bawah)</em>`;
@@ -272,13 +279,14 @@ const Devices = {
         const isSelected = this.sendMode === 'single' && this.selectedDevice === device.id;
 
         return `
-            <div class="device-card ${isSelected ? 'selected' : ''}" data-device-id="${device.id}">
+            <div class="device-card ${isSelected ? 'selected' : ''} ${!isOnline ? 'offline-device' : ''}" data-device-id="${device.id}">
                 <div class="device-card-icon">${icon}</div>
                 <div class="device-card-info">
                     <div class="device-card-name" title="${LANX.escapeHtml(device.name)}">${LANX.escapeHtml(device.name)}</div>
                     <div class="device-card-status">
                         <span class="status-dot ${isOnline ? 'online' : 'offline'}"></span>
                         ${isOnline ? 'Online' : 'Offline'}
+                        ${!isOnline ? '<span class="mailbox-pill" title="Berkas/pesan disimpan di server dan otomatis masuk saat komputer ini online">📬 Kotak Masuk</span>' : ''}
                     </div>
                 </div>
                 <button class="device-card-rename-btn" data-rename-id="${device.id}" title="Ubah nama / alias perangkat ini">
@@ -334,20 +342,32 @@ const Devices = {
     updateSelects() {
         const selects = document.querySelectorAll('.device-select');
         const visible = this.getVisibleDevices();
+        const onlineDevs = visible.filter(d => d.online !== false);
+        const offlineDevs = visible.filter(d => d.online === false);
 
         selects.forEach(select => {
-            const currentVal = select.value;
             const options = [
                 `<option value="all" ${this.sendMode === 'all' || this.selectedDevice === 'all' ? 'selected' : ''}>📢 Semua Perangkat (All Devices)</option>`,
                 '<option disabled>──────────</option>'
             ];
 
-            visible.forEach(d => {
-                if (d.online !== false) {
+            if (onlineDevs.length > 0) {
+                options.push(`<optgroup label="Perangkat Online (${onlineDevs.length})">`);
+                onlineDevs.forEach(d => {
                     const isSelected = (this.sendMode === 'single' && this.selectedDevice === d.id);
                     options.push(`<option value="${d.id}" ${isSelected ? 'selected' : ''}>${LANX.escapeHtml(d.name)}</option>`);
-                }
-            });
+                });
+                options.push('</optgroup>');
+            }
+
+            if (offlineDevs.length > 0) {
+                options.push(`<optgroup label="📬 Kotak Masuk Offline (${offlineDevs.length})">`);
+                offlineDevs.forEach(d => {
+                    const isSelected = (this.sendMode === 'single' && this.selectedDevice === d.id);
+                    options.push(`<option value="${d.id}" ${isSelected ? 'selected' : ''}>📬 ${LANX.escapeHtml(d.name)} (Offline)</option>`);
+                });
+                options.push('</optgroup>');
+            }
 
             select.innerHTML = options.join('');
 
@@ -445,9 +465,7 @@ const Devices = {
         if (idx >= 0) {
             this.devices[idx].online = false;
             LANX.showToast(`${this.devices[idx].name} went offline`, 'info');
-            if (this.selectedDevice === deviceId) {
-                this.selectedDevice = null;
-            }
+            // Keep device selected if it was selected so user can still queue files/messages
             this.render();
             this.updateSelects();
             this.updateTargetDisplay();
