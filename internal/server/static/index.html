@@ -101,8 +101,14 @@
                 </div>
             </div>
             <div class="mode-target-info" id="mode-target-info">
-                <span class="target-indicator-dot"></span>
-                <span id="mode-target-desc">Target: <strong>📢 Semua Perangkat (All Devices)</strong></span>
+                <div class="mode-target-row">
+                    <span class="target-indicator-dot"></span>
+                    <span id="mode-target-desc">Target: <strong>📢 Semua Perangkat (All Devices)</strong></span>
+                </div>
+                <button type="button" class="quick-auto-download-btn" id="btn-quick-auto-download" title="Klik untuk beralih Terima Berkas Otomatis">
+                    <span class="quick-auto-icon">⚡</span>
+                    <span>Auto-Download: <strong id="quick-auto-status">OFF</strong></span>
+                </button>
             </div>
         </div>
 
@@ -118,13 +124,39 @@
                             <polyline points="17 8 12 3 7 8"/>
                             <line x1="12" y1="3" x2="12" y2="15"/>
                         </svg>
-                        <p class="drop-zone-text">Tarik berkas ke sini</p>
-                        <p class="drop-zone-hint">atau klik untuk memilih berkas</p>
+                        <p class="drop-zone-text">Tarik berkas atau folder ke sini</p>
+                        <p class="drop-zone-hint">atau gunakan pilihan cepat di bawah:</p>
+                        
+                        <div class="drop-zone-actions" id="drop-zone-actions">
+                            <button type="button" class="drop-action-btn" id="btn-pick-file">
+                                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/>
+                                    <polyline points="13 2 13 9 20 9"/>
+                                </svg>
+                                <span>Pilih Berkas</span>
+                            </button>
+                            <button type="button" class="drop-action-btn" id="btn-pick-folder" title="Kirim seluruh folder (otomatis dikemas menjadi .zip)">
+                                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/>
+                                </svg>
+                                <span>📁 Kirim Folder</span>
+                            </button>
+                            <button type="button" class="drop-action-btn camera-btn" id="btn-quick-camera" title="Buka kamera ponsel dan langsung kirim jepretan foto">
+                                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/>
+                                    <circle cx="12" cy="13" r="4"/>
+                                </svg>
+                                <span>📸 Foto Langsung</span>
+                            </button>
+                        </div>
+
                         <div class="drop-zone-target-badge" id="drop-zone-target-badge">
                             Target: <strong id="drop-target-name">📢 Semua Perangkat (All Devices)</strong>
                         </div>
                     </div>
                     <input type="file" id="file-input" multiple hidden>
+                    <input type="file" id="folder-input" webkitdirectory directory multiple hidden>
+                    <input type="file" id="camera-input" accept="image/*" capture="environment" hidden>
                 </div>
 
                 <!-- Active Transfers -->
@@ -250,6 +282,19 @@
                                 </span>
                             </label>
                         </div>
+                    </div>
+                </div>
+                <div class="settings-group">
+                    <h4 class="settings-group-title">Transfer & Otomasi</h4>
+                    <div class="settings-field settings-toggle-field">
+                        <div>
+                            <label class="settings-label" for="setting-auto-download">Terima Berkas Otomatis (Auto-Download)</label>
+                            <p class="settings-hint" style="font-size: var(--font-size-xs); color: var(--color-text-tertiary); margin-top: 2px;">Otomatis simpan berkas yang diterima ke folder Downloads tanpa perlu klik unduh.</p>
+                        </div>
+                        <label class="toggle">
+                            <input type="checkbox" id="setting-auto-download">
+                            <span class="toggle-slider"></span>
+                        </label>
                     </div>
                 </div>
                 <div class="settings-group">
@@ -404,6 +449,40 @@
             <div class="modal-footer" style="justify-content: flex-end; gap: 8px;">
                 <button class="btn btn-ghost" id="btn-cancel-rename">Batal</button>
                 <button class="btn btn-primary" id="btn-save-rename">Simpan Perubahan</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Media Preview Lightbox Modal -->
+    <div class="modal-overlay preview-modal-overlay" id="media-preview-modal" style="display: none;">
+        <div class="preview-modal-dialog">
+            <div class="preview-header">
+                <div class="preview-file-title-wrap">
+                    <span class="preview-icon" id="preview-icon">🖼️</span>
+                    <div class="preview-info">
+                        <div class="preview-name" id="preview-filename">file_preview</div>
+                        <div class="preview-meta" id="preview-meta">0 KB</div>
+                    </div>
+                </div>
+                <div class="preview-header-actions">
+                    <a href="#" class="btn btn-sm btn-primary" id="preview-btn-download" download>
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                            <polyline points="7 10 12 15 17 10"/>
+                            <line x1="12" y1="15" x2="12" y2="3"/>
+                        </svg>
+                        <span>Unduh</span>
+                    </a>
+                    <button class="btn-icon preview-close-btn" id="btn-close-preview" aria-label="Tutup pratinjau">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <line x1="18" y1="6" x2="6" y2="18"/>
+                            <line x1="6" y1="6" x2="18" y2="18"/>
+                        </svg>
+                    </button>
+                </div>
+            </div>
+            <div class="preview-stage" id="preview-stage">
+                <!-- Injected: img, video, audio, or text container -->
             </div>
         </div>
     </div>

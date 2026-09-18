@@ -12,6 +12,7 @@ const LANX = {
     clientId: null,
     clientName: null,
     platform: 'desktop',
+    autoDownload: false,
 
     /** Initialize the application */
     async init() {
@@ -24,12 +25,16 @@ const LANX = {
         // Load settings & apply theme
         await this.loadSettings();
 
+        // Initialize Auto-Download preference
+        this.initAutoDownload();
+
         // Setup UI handlers
         this.setupTabs();
         this.setupSettings();
         this.setupPairing();
         this.setupProfileModal();
         this.setupModals();
+        this.setupMediaPreviewModal();
 
         // Sync profile with server database
         await this.syncDeviceProfile();
@@ -131,6 +136,46 @@ const LANX = {
         }
     },
 
+    initAutoDownload() {
+        this.autoDownload = localStorage.getItem('lanx_auto_download') === 'true';
+
+        const btnQuick = document.getElementById('btn-quick-auto-download');
+        if (btnQuick) {
+            btnQuick.addEventListener('click', () => {
+                this.autoDownload = !this.autoDownload;
+                localStorage.setItem('lanx_auto_download', this.autoDownload ? 'true' : 'false');
+                this.updateAutoDownloadUI();
+                this.showToast(this.autoDownload ? '⚡ Auto-Download diaktifkan: berkas langsung tersimpan' : 'Auto-Download dinonaktifkan', 'info');
+            });
+        }
+
+        const checkSetting = document.getElementById('setting-auto-download');
+        if (checkSetting) {
+            checkSetting.addEventListener('change', (e) => {
+                this.autoDownload = e.target.checked;
+                localStorage.setItem('lanx_auto_download', this.autoDownload ? 'true' : 'false');
+                this.updateAutoDownloadUI();
+            });
+        }
+
+        this.updateAutoDownloadUI();
+    },
+
+    updateAutoDownloadUI() {
+        const quickStatus = document.getElementById('quick-auto-status');
+        const quickBtn = document.getElementById('btn-quick-auto-download');
+        const checkSetting = document.getElementById('setting-auto-download');
+
+        if (quickStatus) quickStatus.textContent = this.autoDownload ? 'ON' : 'OFF';
+        if (quickBtn) {
+            if (this.autoDownload) quickBtn.classList.add('active');
+            else quickBtn.classList.remove('active');
+        }
+        if (checkSetting) {
+            checkSetting.checked = this.autoDownload;
+        }
+    },
+
     setupSettings() {
         const btnOpen = document.getElementById('btn-settings');
         const btnClose = document.getElementById('btn-close-settings');
@@ -151,11 +196,15 @@ const LANX = {
         const modal = document.getElementById('settings-modal');
         const nameInput = document.getElementById('setting-device-name');
         const pairingInput = document.getElementById('setting-pairing');
+        const autoDownloadInput = document.getElementById('setting-auto-download');
         const versionSpan = document.getElementById('settings-version');
 
         if (this.settings) {
             nameInput.value = this.settings.device_name || '';
             pairingInput.checked = this.settings.pairing_required;
+        }
+        if (autoDownloadInput) {
+            autoDownloadInput.checked = this.autoDownload;
         }
         if (this.deviceInfo) {
             versionSpan.textContent = this.deviceInfo.version || '1.0.0';
@@ -511,7 +560,21 @@ const LANX = {
                 }
                 const isTarget = !msg.target_device_id || msg.target_device_id === 'all' || msg.target_device_id === myId;
                 if (isTarget && msg.download_url) {
-                    this.showFileReceivedToast(msg);
+                    let autoDownloaded = false;
+                    if (this.autoDownload) {
+                        try {
+                            const a = document.createElement('a');
+                            a.href = msg.download_url;
+                            a.download = msg.filename || 'download';
+                            document.body.appendChild(a);
+                            a.click();
+                            a.remove();
+                            autoDownloaded = true;
+                        } catch (e) {
+                            console.error('[LANX] Auto-download error:', e);
+                        }
+                    }
+                    this.showFileReceivedToast(msg, autoDownloaded);
                 }
                 break;
 
@@ -554,23 +617,41 @@ const LANX = {
         }
     },
 
-    showFileReceivedToast(msg) {
+    showFileReceivedToast(msg, autoDownloaded = false) {
         const container = document.getElementById('toast-container');
         const toast = document.createElement('div');
         toast.className = 'toast success';
         const isBroadcast = msg.target_device_id === 'all';
         const fromDevice = msg.from_device ? `Dari <strong>${this.escapeHtml(msg.from_device)}</strong>` : 'Berkas Baru';
+        const canPreview = typeof Transfer !== 'undefined' && Transfer.isPreviewable(msg.filename);
+
+        let badgeText = isBroadcast ? '📢 Siaran ke Semua' : '🎯 Berkas Diterima';
+        if (autoDownloaded) {
+            badgeText = '⚡ Terunduh Otomatis';
+        }
 
         toast.innerHTML = `
-            <div style="margin-bottom: 6px;">
-                <span style="font-size: 0.75rem; background: rgba(26,115,232,0.15); color: var(--color-primary); padding: 1px 6px; border-radius: 4px; font-weight: 600; display: inline-block; margin-bottom: 4px;">
-                    ${isBroadcast ? '📢 Siaran ke Semua' : '🎯 Berkas Diterima'}
+            <div style="margin-bottom: 8px;">
+                <span style="font-size: 0.75rem; background: ${autoDownloaded ? 'rgba(16,185,129,0.15)' : 'rgba(26,115,232,0.15)'}; color: ${autoDownloaded ? '#10b981' : 'var(--color-primary)'}; padding: 1px 6px; border-radius: 4px; font-weight: 600; display: inline-block; margin-bottom: 4px;">
+                    ${badgeText}
                 </span>
                 <div>${fromDevice}: <strong>${this.escapeHtml(msg.filename)}</strong> (${this.formatSize(msg.size)})</div>
             </div>
-            <a href="${msg.download_url}" download="${this.escapeHtml(msg.filename)}" class="btn btn-sm btn-primary" style="display: inline-block; padding: 4px 12px; text-decoration: none; color: #fff; border-radius: 4px; font-weight: 500;">
-                📥 Unduh Berkas
-            </a>
+            <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
+                ${canPreview ? `
+                    <button type="button" class="btn btn-sm btn-ghost btn-toast-preview"
+                        data-id="${msg.download_id}"
+                        data-filename="${this.escapeHtml(msg.filename)}"
+                        data-size="${msg.size || 0}"
+                        data-from="${this.escapeHtml(msg.from_device || '')}"
+                        style="padding: 4px 10px; border: 1px solid var(--color-border); font-weight: 500;">
+                        👁️ Pratinjau
+                    </button>
+                ` : ''}
+                <a href="${msg.download_url}" download="${this.escapeHtml(msg.filename)}" class="btn btn-sm btn-primary" style="display: inline-block; padding: 4px 12px; text-decoration: none; color: #fff; border-radius: 4px; font-weight: 500;">
+                    ${autoDownloaded ? '📥 Unduh Ulang' : '📥 Unduh Berkas'}
+                </a>
+            </div>
         `;
         container.appendChild(toast);
 
@@ -578,6 +659,121 @@ const LANX = {
             toast.classList.add('toast-out');
             toast.addEventListener('animationend', () => toast.remove());
         }, 15000);
+    },
+
+    setupMediaPreviewModal() {
+        const modal = document.getElementById('media-preview-modal');
+        const btnClose = document.getElementById('btn-close-preview');
+
+        if (btnClose) {
+            btnClose.addEventListener('click', () => this.closeMediaPreview());
+        }
+        if (modal) {
+            modal.addEventListener('click', (e) => {
+                if (e.target === modal) this.closeMediaPreview();
+            });
+        }
+
+        // Event delegation for toast preview button
+        document.addEventListener('click', (e) => {
+            const toastBtn = e.target.closest('.btn-toast-preview');
+            if (toastBtn) {
+                const id = toastBtn.dataset.id;
+                const filename = toastBtn.dataset.filename;
+                const size = parseInt(toastBtn.dataset.size || '0', 10);
+                const from = toastBtn.dataset.from;
+                if (id && filename) {
+                    this.openMediaPreview(filename, id, size, from);
+                }
+            }
+        });
+    },
+
+    async openMediaPreview(filename, downloadId, size, fromDevice) {
+        const modal = document.getElementById('media-preview-modal');
+        if (!modal) return;
+
+        const nameEl = document.getElementById('preview-filename');
+        const metaEl = document.getElementById('preview-meta');
+        const iconEl = document.getElementById('preview-icon');
+        const dlBtn = document.getElementById('preview-btn-download');
+        const stage = document.getElementById('preview-stage');
+
+        if (nameEl) nameEl.textContent = filename;
+        if (metaEl) metaEl.textContent = `${this.formatSize(size || 0)} · Dari ${fromDevice || 'Perangkat Lain'}`;
+        if (iconEl && typeof Transfer !== 'undefined') iconEl.textContent = Transfer.getFileIcon(filename);
+        if (dlBtn) {
+            dlBtn.href = `/api/download/${downloadId}`;
+            dlBtn.download = filename;
+        }
+
+        const ext = (filename.split('.').pop() || '').toLowerCase();
+        const previewUrl = `/api/download/${downloadId}?preview=1`;
+
+        const imgExts = ['jpg', 'jpeg', 'png', 'gif', 'webp', 'svg', 'bmp', 'ico'];
+        const vidExts = ['mp4', 'webm', 'mov', 'mkv'];
+        const audExts = ['mp3', 'wav', 'ogg', 'm4a', 'flac'];
+        const txtExts = ['txt', 'md', 'json', 'log', 'csv', 'js', 'html', 'css', 'go'];
+
+        stage.innerHTML = '<div style="color: var(--color-text-tertiary); font-size: var(--font-size-sm);">Memuat pratinjau...</div>';
+
+        if (imgExts.includes(ext)) {
+            stage.innerHTML = `<img src="${previewUrl}" alt="${this.escapeHtml(filename)}">`;
+        } else if (vidExts.includes(ext)) {
+            stage.innerHTML = `<video src="${previewUrl}" controls autoplay playsinline style="max-width: 100%; max-height: 70vh;"></video>`;
+        } else if (audExts.includes(ext)) {
+            stage.innerHTML = `
+                <div class="preview-audio-container">
+                    <div class="preview-audio-disc">🎵</div>
+                    <div style="font-weight: 600; color: var(--color-text); margin-bottom: 4px;">${this.escapeHtml(filename)}</div>
+                    <audio src="${previewUrl}" controls autoplay></audio>
+                </div>
+            `;
+        } else if (ext === 'pdf') {
+            stage.innerHTML = `<iframe src="${previewUrl}" style="width: 100%; height: 70vh; border: none; border-radius: var(--radius-sm);"></iframe>`;
+        } else if (txtExts.includes(ext)) {
+            try {
+                const res = await fetch(previewUrl);
+                if (res.ok) {
+                    const text = await res.text();
+                    stage.innerHTML = `
+                        <div class="preview-text-container">
+                            <pre class="preview-text-content">${this.escapeHtml(text)}</pre>
+                        </div>
+                    `;
+                } else {
+                    stage.innerHTML = '<div class="preview-empty-stage">Gagal memuat isi teks.</div>';
+                }
+            } catch (e) {
+                stage.innerHTML = '<div class="preview-empty-stage">Gagal memuat isi teks.</div>';
+            }
+        } else {
+            stage.innerHTML = `
+                <div class="preview-empty-stage">
+                    <div style="font-size: 3rem; margin-bottom: 12px;">📄</div>
+                    <p style="font-weight: 500; color: var(--color-text); margin-bottom: 4px;">Pratinjau langsung tidak didukung untuk format ini</p>
+                    <p style="font-size: var(--font-size-xs); color: var(--color-text-tertiary); margin-bottom: 16px;">Anda dapat langsung mengunduh berkas ke komputer.</p>
+                    <a href="/api/download/${downloadId}" class="btn btn-primary" download="${this.escapeHtml(filename)}">Unduh Berkas Sekarang</a>
+                </div>
+            `;
+        }
+
+        modal.style.display = 'flex';
+    },
+
+    closeMediaPreview() {
+        const modal = document.getElementById('media-preview-modal');
+        if (!modal) return;
+        const stage = document.getElementById('preview-stage');
+        if (stage) {
+            const mediaElements = stage.querySelectorAll('video, audio');
+            mediaElements.forEach(el => {
+                el.pause();
+                el.src = '';
+            });
+            stage.innerHTML = '';
+        }
+        modal.style.display = 'none';
     },
 
     showIncomingFile(msg) {

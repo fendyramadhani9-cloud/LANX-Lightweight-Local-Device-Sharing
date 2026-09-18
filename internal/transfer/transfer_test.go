@@ -5,6 +5,7 @@ import (
 	"mime/multipart"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"testing"
 )
 
@@ -228,3 +229,120 @@ func TestUploadBroadcastHandler(t *testing.T) {
 		t.Errorf("expected sender pc-a-id / PC A, got %+v", dataMap)
 	}
 }
+
+func TestUploadFolderHandler(t *testing.T) {
+	tempDir := t.TempDir()
+	var lastEvent string
+	var lastData any
+
+	mgr := NewManager(nil)
+	handler := NewHandler(mgr, tempDir, func(eventType string, data any) {
+		lastEvent = eventType
+		lastData = data
+	})
+
+	body := &bytes.Buffer{}
+	writer := multipart.NewWriter(body)
+	writer.WriteField("folder_name", "MyProject")
+	writer.WriteField("target_device_id", "dev-pc")
+	writer.WriteField("transfer_id", "tf-folder-1")
+	writer.WriteField("sender_id", "hp-1")
+	writer.WriteField("sender_name", "HP User")
+
+	writer.WriteField("paths", "MyProject/main.go")
+	p1, err := writer.CreateFormFile("files", "main.go")
+	if err != nil {
+		t.Fatal(err)
+	}
+	p1.Write([]byte("package main\nfunc main() {}"))
+
+	writer.WriteField("paths", "MyProject/sub/notes.txt")
+	p2, err := writer.CreateFormFile("files", "notes.txt")
+	if err != nil {
+		t.Fatal(err)
+	}
+	p2.Write([]byte("catatan proyek"))
+	writer.Close()
+
+	req := httptest.NewRequest("POST", "/api/upload-folder", body)
+	req.Header.Set("Content-Type", writer.FormDataContentType())
+	w := httptest.NewRecorder()
+
+	mux := http.NewServeMux()
+	handler.RegisterRoutes(mux)
+	mux.ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected status 200, got %d: %s", w.Code, w.Body.String())
+	}
+	if lastEvent != "transfer_complete" {
+		t.Fatalf("expected transfer_complete, got %s", lastEvent)
+	}
+	dataMap, ok := lastData.(map[string]any)
+	if !ok {
+		t.Fatalf("expected map data")
+	}
+	if dataMap["filename"] != "MyProject.zip" {
+		t.Errorf("expected MyProject.zip, got %v", dataMap["filename"])
+	}
+}
+
+func TestDownloadPreviewHandler(t *testing.T) {
+	tempDir := t.TempDir()
+	mgr := NewManager(nil)
+	handler := NewHandler(mgr, tempDir, nil)
+
+	// Add image and txt to file store
+	imgPath := tempDir + "/test_img.png"
+	txtPath := tempDir + "/test_doc.txt"
+	_ = bytes.NewBuffer(nil) // dummy
+	if err := os.WriteFile(imgPath, []byte("fake png content"), 0644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(txtPath, []byte("hello world"), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	imgID := handler.store.Add("test_img.png", imgPath, 16)
+	txtID := handler.store.Add("test_doc.txt", txtPath, 11)
+
+	mux := http.NewServeMux()
+	handler.RegisterRoutes(mux)
+
+	// Test regular download (attachment)
+	reqDl := httptest.NewRequest("GET", "/api/download/"+imgID, nil)
+	wDl := httptest.NewRecorder()
+	mux.ServeHTTP(wDl, reqDl)
+	if wDl.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d", wDl.Code)
+	}
+	if disp := wDl.Header().Get("Content-Disposition"); !bytes.Contains([]byte(disp), []byte("attachment")) {
+		t.Errorf("expected attachment Content-Disposition, got %s", disp)
+	}
+	if ctype := wDl.Header().Get("Content-Type"); ctype != "image/png" {
+		t.Errorf("expected image/png, got %s", ctype)
+	}
+
+	// Test preview download (inline)
+	reqPrev := httptest.NewRequest("GET", "/api/download/"+imgID+"?preview=1", nil)
+	wPrev := httptest.NewRecorder()
+	mux.ServeHTTP(wPrev, reqPrev)
+	if wPrev.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d", wPrev.Code)
+	}
+	if disp := wPrev.Header().Get("Content-Disposition"); !bytes.Contains([]byte(disp), []byte("inline")) {
+		t.Errorf("expected inline Content-Disposition, got %s", disp)
+	}
+
+	// Test text preview
+	reqTxt := httptest.NewRequest("GET", "/api/download/"+txtID+"?preview=1", nil)
+	wTxt := httptest.NewRecorder()
+	mux.ServeHTTP(wTxt, reqTxt)
+	if wTxt.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d", wTxt.Code)
+	}
+	if ctype := wTxt.Header().Get("Content-Type"); !bytes.Contains([]byte(ctype), []byte("text/plain")) {
+		t.Errorf("expected text/plain, got %s", ctype)
+	}
+}
+
