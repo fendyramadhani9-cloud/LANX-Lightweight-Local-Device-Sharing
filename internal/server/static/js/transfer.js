@@ -74,39 +74,48 @@ const Transfer = {
     showDevicePicker(files) {
         const devices = Devices.devices.filter(d => d.online !== false);
 
-        if (devices.length === 0) {
-            LANX.showToast('No devices available. Make sure another LANX device is on the same network.', 'error');
-            return;
-        }
-
-        if (devices.length === 1) {
-            // Auto-select only device
-            files.forEach(file => this.uploadFile(file, devices[0]));
-            return;
-        }
-
         // Create picker overlay
         const overlay = document.createElement('div');
         overlay.className = 'device-picker-overlay';
         overlay.innerHTML = `
             <div class="device-picker">
-                <h3>Send to</h3>
-                <div class="device-picker-list">
-                    ${devices.map(d => `
-                        <div class="device-card" data-device-id="${d.id}">
-                            <div class="device-card-icon">${Devices.getDeviceIcon(d.name)}</div>
-                            <div class="device-card-info">
-                                <div class="device-card-name">${LANX.escapeHtml(d.name)}</div>
-                                <div class="device-card-status">
-                                    <span class="status-dot online"></span> Online
+                <h3>Kirim Berkas ke:</h3>
+                <div class="device-picker-broadcast-btn" id="btn-picker-broadcast">
+                    <div class="device-card-icon" style="background: linear-gradient(135deg, #1a73e8, #4285f4); color: #fff;">📢</div>
+                    <div>
+                        <div class="device-picker-broadcast-title">Kirim ke Semua Perangkat (All)</div>
+                        <div class="device-picker-broadcast-desc">Siarkan berkas ini ke seluruh perangkat yang terhubung</div>
+                    </div>
+                </div>
+                ${devices.length > 0 ? `
+                    <div style="font-size: var(--font-size-xs); font-weight: 600; color: var(--color-text-secondary); margin-bottom: 8px; text-transform: uppercase;">Atau pilih perangkat tertentu:</div>
+                    <div class="device-picker-list">
+                        ${devices.map(d => `
+                            <div class="device-card" data-device-id="${d.id}">
+                                <div class="device-card-icon">${Devices.getDeviceIcon(d.name)}</div>
+                                <div class="device-card-info">
+                                    <div class="device-card-name">${LANX.escapeHtml(d.name)}</div>
+                                    <div class="device-card-status">
+                                        <span class="status-dot online"></span> Online
+                                    </div>
                                 </div>
                             </div>
-                        </div>
-                    `).join('')}
-                </div>
-                <button class="btn btn-ghost" style="width: 100%;" id="cancel-picker">Cancel</button>
+                        `).join('')}
+                    </div>
+                ` : `
+                    <p style="text-align: center; color: var(--color-text-tertiary); font-size: var(--font-size-sm); margin: 16px 0;">Belum ada perangkat lain terhubung. Anda tetap dapat menyiarkan ke Semua Perangkat.</p>
+                `}
+                <button class="btn btn-ghost" style="width: 100%; margin-top: 12px;" id="cancel-picker">Batal</button>
             </div>
         `;
+
+        const broadcastBtn = overlay.querySelector('#btn-picker-broadcast');
+        if (broadcastBtn) {
+            broadcastBtn.addEventListener('click', () => {
+                files.forEach(file => this.uploadFile(file, { id: 'all', name: 'Semua Perangkat (All Devices)' }));
+                overlay.remove();
+            });
+        }
 
         overlay.querySelector('#cancel-picker').addEventListener('click', () => overlay.remove());
         overlay.addEventListener('click', (e) => {
@@ -131,6 +140,8 @@ const Transfer = {
 
     async uploadFile(file, targetDevice) {
         const transferId = this.generateId();
+        const isAll = targetDevice.id === 'all';
+        const targetDisplayName = isAll ? '📢 Semua Perangkat' : targetDevice.name;
 
         // Create transfer entry
         this.activeTransfers[transferId] = {
@@ -141,7 +152,7 @@ const Transfer = {
             percentage: 0,
             status: 'preparing',
             direction: 'sent',
-            device: targetDevice.name,
+            device: targetDisplayName,
             timestamp: Date.now(),
         };
 
@@ -151,6 +162,8 @@ const Transfer = {
         formData.append('file', file);
         formData.append('target_device_id', targetDevice.id);
         formData.append('transfer_id', transferId);
+        formData.append('sender_id', LANX.clientId || '');
+        formData.append('sender_name', LANX.clientName || 'Perangkat Ini');
 
         try {
             const xhr = new XMLHttpRequest();

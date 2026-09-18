@@ -357,7 +357,12 @@ const LANX = {
             case 'transfer_complete':
                 if (typeof Transfer !== 'undefined') Transfer.handleEvent(msg);
                 const myId = this.clientId || (this.deviceInfo && this.deviceInfo.id);
-                if (msg.target_device_id && msg.target_device_id === myId && msg.download_url) {
+                // Do not show incoming download toast to the sender itself
+                if (msg.sender_id && msg.sender_id === myId) {
+                    break;
+                }
+                const isTarget = !msg.target_device_id || msg.target_device_id === 'all' || msg.target_device_id === myId;
+                if (isTarget && msg.download_url) {
                     this.showFileReceivedToast(msg);
                 }
                 break;
@@ -370,14 +375,20 @@ const LANX = {
 
             case 'text_received':
                 const curId = this.clientId || (this.deviceInfo && this.deviceInfo.id);
-                if (!msg.target_device_id || msg.target_device_id === curId) {
+                if (msg.from_id && msg.from_id === curId) {
+                    break;
+                }
+                if (!msg.target_device_id || msg.target_device_id === 'all' || msg.target_device_id === curId) {
                     if (typeof Clipboard !== 'undefined') Clipboard.handleTextReceived(msg);
                 }
                 break;
 
             case 'clipboard_received':
                 const curClipId = this.clientId || (this.deviceInfo && this.deviceInfo.id);
-                if (!msg.target_device_id || msg.target_device_id === curClipId) {
+                if (msg.from_id && msg.from_id === curClipId) {
+                    break;
+                }
+                if (!msg.target_device_id || msg.target_device_id === 'all' || msg.target_device_id === curClipId) {
                     if (typeof Clipboard !== 'undefined') Clipboard.handleClipboardReceived(msg);
                 }
                 break;
@@ -399,12 +410,18 @@ const LANX = {
         const container = document.getElementById('toast-container');
         const toast = document.createElement('div');
         toast.className = 'toast success';
+        const isBroadcast = msg.target_device_id === 'all';
+        const fromDevice = msg.from_device ? `Dari <strong>${this.escapeHtml(msg.from_device)}</strong>` : 'Berkas Baru';
+
         toast.innerHTML = `
             <div style="margin-bottom: 6px;">
-                <strong>Berkas Masuk:</strong> ${this.escapeHtml(msg.filename)} (${this.formatSize(msg.size)})
+                <span style="font-size: 0.75rem; background: rgba(26,115,232,0.15); color: var(--color-primary); padding: 1px 6px; border-radius: 4px; font-weight: 600; display: inline-block; margin-bottom: 4px;">
+                    ${isBroadcast ? '📢 Siaran ke Semua' : '🎯 Berkas Diterima'}
+                </span>
+                <div>${fromDevice}: <strong>${this.escapeHtml(msg.filename)}</strong> (${this.formatSize(msg.size)})</div>
             </div>
-            <a href="${msg.download_url}" download="${this.escapeHtml(msg.filename)}" class="btn btn-sm btn-primary" style="display: inline-block; padding: 4px 10px; text-decoration: none; color: #fff; border-radius: 4px; font-weight: 500;">
-                Unduh Berkas
+            <a href="${msg.download_url}" download="${this.escapeHtml(msg.filename)}" class="btn btn-sm btn-primary" style="display: inline-block; padding: 4px 12px; text-decoration: none; color: #fff; border-radius: 4px; font-weight: 500;">
+                📥 Unduh Berkas
             </a>
         `;
         container.appendChild(toast);

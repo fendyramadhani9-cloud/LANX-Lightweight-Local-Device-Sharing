@@ -49,6 +49,8 @@ func (h *Handler) RegisterRoutes(mux *http.ServeMux) {
 type sendTextRequest struct {
 	Text           string `json:"text"`
 	TargetDeviceID string `json:"target_device_id"`
+	SenderID       string `json:"sender_id,omitempty"`
+	SenderName     string `json:"sender_name,omitempty"`
 }
 
 func (h *Handler) handleSendText(w http.ResponseWriter, r *http.Request) {
@@ -61,6 +63,43 @@ func (h *Handler) handleSendText(w http.ResponseWriter, r *http.Request) {
 	text := strings.TrimSpace(req.Text)
 	if text == "" {
 		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "Text cannot be empty"})
+		return
+	}
+
+	fromDevice := h.deviceName
+	if strings.TrimSpace(req.SenderName) != "" {
+		fromDevice = strings.TrimSpace(req.SenderName)
+	}
+	fromID := h.deviceID
+	if strings.TrimSpace(req.SenderID) != "" {
+		fromID = strings.TrimSpace(req.SenderID)
+	}
+
+	// Handle All Devices (broadcast)
+	if req.TargetDeviceID == "all" || req.TargetDeviceID == "*" {
+		if h.onEvent != nil {
+			h.onEvent("text_received", map[string]any{
+				"target_device_id": "all",
+				"text":             text,
+				"from_device":      fromDevice,
+				"from_id":          fromID,
+			})
+		}
+
+		// Also forward to online standalone peer devices (not browser, not local host)
+		for _, d := range h.registry.OnlineDevices() {
+			if !d.IsBrowser && !d.IsHost && d.ID != fromID {
+				go func(peer *device.Device) {
+					_ = h.forwardToDevice(peer, "/api/receive/text", map[string]any{
+						"text":        text,
+						"from_device": fromDevice,
+						"from_id":     fromID,
+					})
+				}(d)
+			}
+		}
+
+		writeJSON(w, http.StatusOK, map[string]string{"status": "sent", "target": "all"})
 		return
 	}
 
@@ -77,8 +116,8 @@ func (h *Handler) handleSendText(w http.ResponseWriter, r *http.Request) {
 			h.onEvent("text_received", map[string]any{
 				"target_device_id": req.TargetDeviceID,
 				"text":             text,
-				"from_device":      h.deviceName,
-				"from_id":          h.deviceID,
+				"from_device":      fromDevice,
+				"from_id":          fromID,
 			})
 		}
 		writeJSON(w, http.StatusOK, map[string]string{"status": "sent"})
@@ -88,8 +127,8 @@ func (h *Handler) handleSendText(w http.ResponseWriter, r *http.Request) {
 	// Forward to standalone peer device HTTP server
 	err := h.forwardToDevice(dev, "/api/receive/text", map[string]any{
 		"text":        text,
-		"from_device": h.deviceName,
-		"from_id":     h.deviceID,
+		"from_device": fromDevice,
+		"from_id":     fromID,
 	})
 	if err != nil {
 		writeJSON(w, http.StatusBadGateway, map[string]string{"error": "Failed to send to device"})
@@ -104,6 +143,8 @@ func (h *Handler) handleSendText(w http.ResponseWriter, r *http.Request) {
 type sendClipboardRequest struct {
 	Content        string `json:"content"`
 	TargetDeviceID string `json:"target_device_id"`
+	SenderID       string `json:"sender_id,omitempty"`
+	SenderName     string `json:"sender_name,omitempty"`
 }
 
 func (h *Handler) handleSendClipboard(w http.ResponseWriter, r *http.Request) {
@@ -119,6 +160,42 @@ func (h *Handler) handleSendClipboard(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	fromDevice := h.deviceName
+	if strings.TrimSpace(req.SenderName) != "" {
+		fromDevice = strings.TrimSpace(req.SenderName)
+	}
+	fromID := h.deviceID
+	if strings.TrimSpace(req.SenderID) != "" {
+		fromID = strings.TrimSpace(req.SenderID)
+	}
+
+	// Handle All Devices (broadcast)
+	if req.TargetDeviceID == "all" || req.TargetDeviceID == "*" {
+		if h.onEvent != nil {
+			h.onEvent("clipboard_received", map[string]any{
+				"target_device_id": "all",
+				"content":          content,
+				"from_device":      fromDevice,
+				"from_id":          fromID,
+			})
+		}
+
+		for _, d := range h.registry.OnlineDevices() {
+			if !d.IsBrowser && !d.IsHost && d.ID != fromID {
+				go func(peer *device.Device) {
+					_ = h.forwardToDevice(peer, "/api/receive/clipboard", map[string]any{
+						"content":     content,
+						"from_device": fromDevice,
+						"from_id":     fromID,
+					})
+				}(d)
+			}
+		}
+
+		writeJSON(w, http.StatusOK, map[string]string{"status": "sent", "target": "all"})
+		return
+	}
+
 	dev, ok := h.registry.Get(req.TargetDeviceID)
 	if !ok || !dev.Online {
 		writeJSON(w, http.StatusNotFound, map[string]string{"error": "Device not found or offline"})
@@ -131,8 +208,8 @@ func (h *Handler) handleSendClipboard(w http.ResponseWriter, r *http.Request) {
 			h.onEvent("clipboard_received", map[string]any{
 				"target_device_id": req.TargetDeviceID,
 				"content":          content,
-				"from_device":      h.deviceName,
-				"from_id":          h.deviceID,
+				"from_device":      fromDevice,
+				"from_id":          fromID,
 			})
 		}
 		writeJSON(w, http.StatusOK, map[string]string{"status": "sent"})
@@ -141,8 +218,8 @@ func (h *Handler) handleSendClipboard(w http.ResponseWriter, r *http.Request) {
 
 	err := h.forwardToDevice(dev, "/api/receive/clipboard", map[string]any{
 		"content":     content,
-		"from_device": h.deviceName,
-		"from_id":     h.deviceID,
+		"from_device": fromDevice,
+		"from_id":     fromID,
 	})
 	if err != nil {
 		writeJSON(w, http.StatusBadGateway, map[string]string{"error": "Failed to send to device"})

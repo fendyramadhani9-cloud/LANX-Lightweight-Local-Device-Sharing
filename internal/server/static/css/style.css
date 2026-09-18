@@ -1185,3 +1185,238 @@ body {
     background: var(--color-primary-light);
     color: var(--color-primary);
 }
+
+/* ============================================
+   Send Mode Switcher & Broadcast Aesthetics
+   ============================================ */
+
+.mode-control-container {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: var(--space-md);
+    background: var(--color-surface);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+    padding: var(--space-md) var(--space-lg);
+    margin-bottom: var(--space-lg);
+    box-shadow: var(--shadow-sm);
+    transition: border-color var(--transition);
+}
+
+.mode-control-container:hover {
+    border-color: var(--color-primary);
+}
+
+.mode-control-left {
+    display: flex;
+    align-items: center;
+    gap: var(--space-md);
+    flex-wrap: wrap;
+}
+
+.mode-control-label {
+    font-size: var(--font-size-sm);
+    font-weight: 600;
+    color: var(--color-text-secondary);
+}
+
+.mode-switch {
+    display: inline-flex;
+    background: var(--color-bg);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-full);
+    padding: 3px;
+    gap: 4px;
+}
+
+.mode-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 14px;
+    border: none;
+    border-radius: var(--radius-full);
+    background: transparent;
+    color: var(--color-text-secondary);
+    font-family: var(--font-family);
+    font-size: var(--font-size-sm);
+    font-weight: 500;
+    cursor: pointer;
+    transition: all var(--transition);
+    user-select: none;
+}
+
+.mode-btn:hover {
+    color: var(--color-text);
+}
+
+.mode-btn.active {
+    background: var(--color-primary);
+    color: var(--color-primary-text);
+    box-shadow: 0 2px 6px rgba(26, 115, 232, 0.35);
+}
+
+.mode-badge-live {
+    font-size: 0.6875rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    padding: 2px 6px;
+    border-radius: var(--radius-full);
+    background: rgba(255, 255, 255, 0.25);
+    color: inherit;
+}
+
+.mode-target-info {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-sm);
+    font-size: var(--font-size-sm);
+    color: var(--color-text-secondary);
+    background: var(--color-bg);
+    padding: 6px 12px;
+    border-radius: var(--radius-full);
+    border: 1px solid var(--color-border-light);
+}
+
+.target-indicator-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: var(--radius-full);
+    background: var(--color-primary);
+    display: inline-block;
+    box-shadow: 0 0 0 3px var(--color-primary-light);
+    animation: targetPulse 2s infinite ease-in-out;
+}
+
+@keyframes targetPulse {
+    0% { transform: scale(0.95); opacity: 0.8; }
+    50% { transform: scale(1.15); opacity: 1; }
+    100% { transform: scale(0.95); opacity: 0.8; }
+}
+
+/* Dropzone target indicator */
+.drop-zone-target-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    margin-top: var(--space-md);
+    padding: 4px 12px;
+    border-radius: var(--radius-full);
+    background: var(--color-primary-light);
+    color: var(--color-primary);
+    font-size: var(--font-size-xs);
+    font-weight: 500;
+    pointer-events: auto;
+}
+
+/* Broadcast Device Card in Grid */
+.device-card.broadcast-card {
+    background: linear-gradient(135deg, var(--color-surface) 0%, var(--color-surface-hover) 100%);
+    border: 1.5px dashed var(--color-primary);
+    position: relative;
+    overflow: hidden;
+}
+
+.device-card.broadcast-card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 3px;
+    background: linear-gradient(90deg, #1a73e8, #00c6ff, #1a73e8);
+    background-size: 200% 100%;
+    animation: gradientMove 3s linear infinite;
+}
+
+@keyframes gradientMove {
+    0% { background-position: 0% 0; }
+    100% { background-position: 200% 0; }
+}
+
+.device-card.broadcast-card .device-card-icon {
+    background: linear-gradient(135deg, #1a73e8, #4285f4);
+    color: #ffffff;
+}
+
+.device-card.broadcast-card.selected {
+    background: var(--color-primary-light);
+    border-style: solid;
+    border-color: var(--color-primary);
+    box-shadow: 0 0 0 2px var(--color-primary-light), var(--shadow-md);
+}
+
+.broadcast-badge-pill {
+    display: inline-block;
+    padding: 1px 6px;
+    border-radius: 4px;
+    background: var(--color-primary-light);
+    color: var(--color-primary);
+    font-size: 0.6875rem;
+    font-weight: 600;
+    margin-top: 2px;
+}
+
+/* File Picker Broadcast Button */
+.device-picker-broadcast-btn {
+    display: flex;
+    align-items: center;
+    gap: var(--space-md);
+    padding: var(--space-md) var(--space-lg);
+    background: var(--color-primary-light);
+    border: 1.5px solid var(--color-primary);
+    border-radius: var(--radius-md);
+    margin-bottom: var(--space-md);
+    cursor: pointer;
+    transition: all var(--transition);
+}
+
+.device-picker-broadcast-btn:hover {
+    background: var(--color-primary);
+    color: #ffffff;
+    box-shadow: var(--shadow-md);
+}
+
+.device-picker-broadcast-btn:hover .device-picker-broadcast-desc {
+    color: rgba(255, 255, 255, 0.9);
+}
+
+.device-picker-broadcast-btn:hover .device-picker-broadcast-title {
+    color: #ffffff;
+}
+
+.device-picker-broadcast-title {
+    font-weight: 600;
+    font-size: var(--font-size-base);
+    color: var(--color-primary);
+}
+
+.device-picker-broadcast-desc {
+    font-size: var(--font-size-xs);
+    color: var(--color-text-secondary);
+}
+
+/* Responsive adjustment for mode control */
+@media (max-width: 640px) {
+    .mode-control-container {
+        flex-direction: column;
+        align-items: stretch;
+    }
+    .mode-control-left {
+        flex-direction: column;
+        align-items: stretch;
+    }
+    .mode-switch {
+        width: 100%;
+    }
+    .mode-btn {
+        flex: 1;
+        justify-content: center;
+    }
+    .mode-target-info {
+        justify-content: center;
+    }
+}

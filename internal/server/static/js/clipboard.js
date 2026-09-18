@@ -20,7 +20,11 @@ const Clipboard = {
         if (!input || !sendBtn) return;
 
         const updateBtn = () => {
-            sendBtn.disabled = !select.value || !input.value.trim();
+            if (typeof Devices !== 'undefined') {
+                Devices.updateSendButtons();
+            } else {
+                sendBtn.disabled = !select.value || !input.value.trim();
+            }
         };
 
         input.addEventListener('input', updateBtn);
@@ -47,12 +51,18 @@ const Clipboard = {
         const text = input.value.trim();
         let deviceId = select ? select.value : '';
 
-        // Auto-select single available device if not selected
-        if (!deviceId && typeof Devices !== 'undefined') {
-            const onlineDevs = Devices.getVisibleDevices().filter(d => d.online !== false);
-            if (onlineDevs.length === 1) {
-                deviceId = onlineDevs[0].id;
-                if (select) select.value = deviceId;
+        // Check if All Devices mode is active
+        if (typeof Devices !== 'undefined' && (Devices.sendMode === 'all' || Devices.selectedDevice === 'all')) {
+            deviceId = 'all';
+        } else if (!deviceId && typeof Devices !== 'undefined') {
+            if (Devices.selectedDevice) {
+                deviceId = Devices.selectedDevice;
+            } else {
+                const onlineDevs = Devices.getVisibleDevices().filter(d => d.online !== false);
+                if (onlineDevs.length === 1) {
+                    deviceId = onlineDevs[0].id;
+                    if (select) select.value = deviceId;
+                }
             }
         }
 
@@ -73,11 +83,14 @@ const Clipboard = {
                 body: JSON.stringify({
                     text: text,
                     target_device_id: deviceId,
+                    sender_id: LANX.clientId || '',
+                    sender_name: LANX.clientName || 'Perangkat Ini',
                 }),
             });
 
             if (res.ok) {
-                LANX.showToast('Teks berhasil terkirim!', 'success');
+                const toastMsg = deviceId === 'all' ? 'Teks berhasil disiarkan ke Semua Perangkat!' : 'Teks berhasil terkirim!';
+                LANX.showToast(toastMsg, 'success');
                 input.value = '';
                 const sendBtn = document.getElementById('btn-send-text');
                 if (sendBtn) sendBtn.disabled = true;
@@ -93,13 +106,17 @@ const Clipboard = {
     // ─── Received Items ──────────────────────────────────
 
     handleTextReceived(msg) {
-        this.addReceivedItem(msg.from_device || 'Perangkat Lain', msg.text);
-        LANX.showToast(`Pesan baru dari ${msg.from_device || 'Perangkat Lain'}`, 'info');
+        const isBroadcast = msg.target_device_id === 'all';
+        const senderName = msg.from_device || 'Perangkat Lain';
+        this.addReceivedItem(senderName + (isBroadcast ? ' (Siaran)' : ''), msg.text);
+        LANX.showToast(`Pesan baru dari ${senderName}${isBroadcast ? ' [Semua Perangkat]' : ''}`, 'info');
     },
 
     handleClipboardReceived(msg) {
-        this.addReceivedItem(msg.from_device || 'Perangkat Lain', msg.content);
-        LANX.showToast(`Pesan baru dari ${msg.from_device || 'Perangkat Lain'}`, 'info');
+        const isBroadcast = msg.target_device_id === 'all';
+        const senderName = msg.from_device || 'Perangkat Lain';
+        this.addReceivedItem(senderName + (isBroadcast ? ' (Siaran)' : ''), msg.content);
+        LANX.showToast(`Papan klip baru dari ${senderName}${isBroadcast ? ' [Semua Perangkat]' : ''}`, 'info');
     },
 
     addReceivedItem(from, content) {

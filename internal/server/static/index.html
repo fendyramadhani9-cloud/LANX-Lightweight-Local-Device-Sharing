@@ -69,6 +69,35 @@
             </button>
         </nav>
 
+        <!-- Mode Pengiriman: 1 per 1 Device vs Semua Device (All) -->
+        <div class="mode-control-container" id="mode-control-container">
+            <div class="mode-control-left">
+                <span class="mode-control-label">Mode Pengiriman:</span>
+                <div class="mode-switch" id="mode-switch">
+                    <button type="button" class="mode-btn" data-mode="single" id="btn-mode-single" title="Kirim ke satu perangkat tertentu">
+                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <circle cx="12" cy="12" r="10"/>
+                            <circle cx="12" cy="12" r="3"/>
+                        </svg>
+                        <span>1 per 1 Device</span>
+                    </button>
+                    <button type="button" class="mode-btn active" data-mode="all" id="btn-mode-all" title="Kirim serentak ke semua perangkat di jaringan">
+                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M4.93 19.07A10 10 0 0 1 12 2a10 10 0 0 1 7.07 17.07"/>
+                            <path d="M7.76 16.24A6 6 0 0 1 12 6a6 6 0 0 1 4.24 10.24"/>
+                            <circle cx="12" cy="12" r="2"/>
+                        </svg>
+                        <span>Semua Device (All)</span>
+                        <span class="mode-badge-live">Siaran</span>
+                    </button>
+                </div>
+            </div>
+            <div class="mode-target-info" id="mode-target-info">
+                <span class="target-indicator-dot"></span>
+                <span id="mode-target-desc">Target: <strong>📢 Semua Perangkat (All Devices)</strong></span>
+            </div>
+        </div>
+
         <!-- Tab Panels -->
         <div class="tab-panels">
             <!-- Files Panel -->
@@ -83,6 +112,9 @@
                         </svg>
                         <p class="drop-zone-text">Tarik berkas ke sini</p>
                         <p class="drop-zone-hint">atau klik untuk memilih berkas</p>
+                        <div class="drop-zone-target-badge" id="drop-zone-target-badge">
+                            Target: <strong id="drop-target-name">📢 Semua Perangkat (All Devices)</strong>
+                        </div>
                     </div>
                     <input type="file" id="file-input" multiple hidden>
                 </div>

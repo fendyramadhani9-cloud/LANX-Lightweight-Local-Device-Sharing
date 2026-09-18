@@ -113,6 +113,11 @@ func (h *Handler) handleUpload(w http.ResponseWriter, r *http.Request) {
 
 	targetDeviceID := r.FormValue("target_device_id")
 	clientTransferID := r.FormValue("transfer_id")
+	senderID := r.FormValue("sender_id")
+	senderName := r.FormValue("sender_name")
+	if senderName == "" {
+		senderName = "Perangkat Lain"
+	}
 
 	// Sanitize filename
 	filename := sanitizeFilename(header.Filename)
@@ -121,16 +126,23 @@ func (h *Handler) handleUpload(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Create transfer record
-	t := h.mgr.Create(filename, header.Size, "received", "", targetDeviceID)
+	deviceName := senderName
+	if targetDeviceID == "all" {
+		deviceName = "Semua Perangkat"
+	}
+	t := h.mgr.Create(filename, header.Size, "received", deviceName, targetDeviceID)
 
 	// Broadcast transfer started
 	if h.onTransferEvent != nil {
 		h.onTransferEvent("transfer_started", map[string]any{
-			"transfer_id":      t.ID,
+			"transfer_id":        t.ID,
 			"client_transfer_id": clientTransferID,
-			"filename":         filename,
-			"total_size":       header.Size,
-			"direction":        "receiving",
+			"filename":           filename,
+			"total_size":         header.Size,
+			"direction":          "receiving",
+			"target_device_id":   targetDeviceID,
+			"sender_id":          senderID,
+			"from_device":        senderName,
 		})
 	}
 
@@ -196,6 +208,8 @@ func (h *Handler) handleUpload(w http.ResponseWriter, r *http.Request) {
 			"filename":         filename,
 			"size":             written,
 			"target_device_id": targetDeviceID,
+			"sender_id":        senderID,
+			"from_device":      senderName,
 			"download_url":     fmt.Sprintf("/api/download/%s", downloadID),
 		})
 	}

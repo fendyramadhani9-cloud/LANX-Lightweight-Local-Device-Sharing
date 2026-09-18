@@ -1,6 +1,10 @@
 package transfer
 
 import (
+	"bytes"
+	"mime/multipart"
+	"net/http"
+	"net/http/httptest"
 	"testing"
 )
 
@@ -172,5 +176,55 @@ func TestHistoryMaxLimit(t *testing.T) {
 	history := mgr.History()
 	if len(history) > 50 {
 		t.Errorf("history length = %d, should not exceed 50", len(history))
+	}
+}
+
+func TestUploadBroadcastHandler(t *testing.T) {
+	tempDir := t.TempDir()
+	var lastEvent string
+	var lastData any
+
+	mgr := NewManager(nil)
+	handler := NewHandler(mgr, tempDir, func(eventType string, data any) {
+		lastEvent = eventType
+		lastData = data
+	})
+
+	body := &bytes.Buffer{}
+	writer := multipart.NewWriter(body)
+	part, err := writer.CreateFormFile("file", "catatan.txt")
+	if err != nil {
+		t.Fatal(err)
+	}
+	part.Write([]byte("isi catatan penting"))
+	writer.WriteField("target_device_id", "all")
+	writer.WriteField("transfer_id", "tf-test-123")
+	writer.WriteField("sender_id", "pc-a-id")
+	writer.WriteField("sender_name", "PC A")
+	writer.Close()
+
+	req := httptest.NewRequest("POST", "/api/upload", body)
+	req.Header.Set("Content-Type", writer.FormDataContentType())
+	w := httptest.NewRecorder()
+
+	mux := http.NewServeMux()
+	handler.RegisterRoutes(mux)
+	mux.ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected status 200, got %d: %s", w.Code, w.Body.String())
+	}
+	if lastEvent != "transfer_complete" {
+		t.Fatalf("expected transfer_complete, got %s", lastEvent)
+	}
+	dataMap, ok := lastData.(map[string]any)
+	if !ok {
+		t.Fatalf("expected map data")
+	}
+	if dataMap["target_device_id"] != "all" {
+		t.Errorf("expected target_device_id 'all', got %v", dataMap["target_device_id"])
+	}
+	if dataMap["sender_id"] != "pc-a-id" || dataMap["from_device"] != "PC A" {
+		t.Errorf("expected sender pc-a-id / PC A, got %+v", dataMap)
 	}
 }
