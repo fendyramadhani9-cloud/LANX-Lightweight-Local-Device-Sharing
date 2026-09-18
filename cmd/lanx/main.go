@@ -7,6 +7,7 @@ import (
 	"log"
 	"os"
 	"os/signal"
+	"path/filepath"
 	"syscall"
 
 	"github.com/fendy/lanx/internal/clipboard"
@@ -71,8 +72,9 @@ func main() {
 	// Create WebSocket hub
 	wsHub := websocket.NewHub(logger)
 
-	// Create device registry and register host device
-	registry := device.NewRegistry(func(eventType string, data any) {
+	// Create device registry with persistent storage and register host device
+	devicesDBPath := filepath.Join(cfg.DataDir(), "devices.json")
+	registry := device.NewRegistry(devicesDBPath, func(eventType string, data any) {
 		wsHub.Broadcast(eventType, data)
 	})
 	registry.SetHostDevice(&device.Device{

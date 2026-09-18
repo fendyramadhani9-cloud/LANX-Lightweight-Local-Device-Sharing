@@ -11,7 +11,7 @@ import (
 )
 
 func TestClipboardHandlers(t *testing.T) {
-	registry := device.NewRegistry(nil)
+	registry := device.NewRegistry("", nil)
 	registry.SetHostDevice(&device.Device{
 		ID:       "host-1",
 		Name:     "Host PC",

@@ -28,7 +28,11 @@ const LANX = {
         this.setupTabs();
         this.setupSettings();
         this.setupPairing();
+        this.setupProfileModal();
         this.setupModals();
+
+        // Sync profile with server database
+        await this.syncDeviceProfile();
 
         // Connect WebSocket
         this.connectWebSocket();
@@ -46,6 +50,11 @@ const LANX = {
             localStorage.setItem('lanx_client_id', id);
         }
         this.clientId = id;
+
+        const savedPlat = localStorage.getItem('lanx_client_platform');
+        if (savedPlat) {
+            this.platform = savedPlat;
+        }
 
         let name = localStorage.getItem('lanx_client_name');
         if (!name) {
@@ -71,7 +80,7 @@ const LANX = {
             }
             localStorage.setItem('lanx_client_name', name);
         } else {
-            if (/iPhone|Android|Mobile/i.test(navigator.userAgent)) {
+            if (/iPhone|Android|Mobile/i.test(navigator.userAgent) && !savedPlat) {
                 this.platform = 'mobile';
             }
         }
@@ -266,6 +275,135 @@ const LANX = {
         this.closeModal(modal);
     },
 
+    // ─── Device Profile ───────────────────────────────────
+
+    async syncDeviceProfile() {
+        try {
+            const res = await fetch(`/api/devices/${encodeURIComponent(this.clientId)}`);
+            if (res.ok) {
+                const dev = await res.json();
+                if (dev && dev.name) {
+                    this.clientName = dev.name;
+                    localStorage.setItem('lanx_client_name', dev.name);
+                    if (dev.platform) {
+                        this.platform = dev.platform;
+                        localStorage.setItem('lanx_client_platform', dev.platform);
+                    }
+                }
+            } else {
+                // Register self profile to server
+                await fetch('/api/device/profile', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        id: this.clientId,
+                        name: this.clientName,
+                        platform: this.platform,
+                    }),
+                });
+            }
+        } catch (e) {
+            // Ignore offline or initial connect errors
+        }
+        this.updateHeaderProfileBadge();
+    },
+
+    updateHeaderProfileBadge() {
+        const nameEl = document.getElementById('my-device-name');
+        const iconEl = document.getElementById('my-device-icon');
+        if (nameEl) nameEl.textContent = this.clientName || 'Perangkat Saya';
+        if (iconEl) {
+            let icon = '💻';
+            if (this.platform === 'mobile') icon = '📱';
+            else if (this.platform === 'tablet') icon = '📟';
+            else if (this.platform === 'desktop') icon = '💻';
+            iconEl.textContent = icon;
+        }
+    },
+
+    setupProfileModal() {
+        const btnOpen = document.getElementById('btn-my-profile');
+        const btnClose = document.getElementById('btn-close-profile');
+        const btnCancel = document.getElementById('btn-cancel-profile');
+        const btnSave = document.getElementById('btn-save-profile');
+        const modal = document.getElementById('profile-modal');
+
+        if (btnOpen) {
+            btnOpen.addEventListener('click', () => {
+                const nameInput = document.getElementById('profile-device-name');
+                const idEl = document.getElementById('profile-device-id');
+                if (nameInput) nameInput.value = this.clientName || '';
+                if (idEl) idEl.textContent = this.clientId || '-';
+
+                const platRadio = document.getElementById(`plat-${this.platform}`);
+                if (platRadio) {
+                    platRadio.checked = true;
+                } else {
+                    const defRadio = document.getElementById('plat-desktop');
+                    if (defRadio) defRadio.checked = true;
+                }
+
+                modal.style.display = 'flex';
+                if (nameInput) nameInput.focus();
+            });
+        }
+
+        const closeIt = () => this.closeModal(modal);
+        if (btnClose) btnClose.addEventListener('click', closeIt);
+        if (btnCancel) btnCancel.addEventListener('click', closeIt);
+        if (modal) {
+            modal.addEventListener('click', (e) => {
+                if (e.target === modal) closeIt();
+            });
+        }
+
+        if (btnSave) {
+            btnSave.addEventListener('click', async () => {
+                const nameInput = document.getElementById('profile-device-name');
+                const newName = nameInput ? nameInput.value.trim() : '';
+                const selectedPlat = document.querySelector('input[name="profile-platform"]:checked')?.value || this.platform;
+
+                if (!newName) {
+                    this.showToast('Nama perangkat tidak boleh kosong', 'error');
+                    return;
+                }
+
+                try {
+                    const res = await fetch('/api/device/profile', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            id: this.clientId,
+                            name: newName,
+                            platform: selectedPlat,
+                        }),
+                    });
+
+                    if (res.ok) {
+                        this.clientName = newName;
+                        this.platform = selectedPlat;
+                        localStorage.setItem('lanx_client_name', newName);
+                        localStorage.setItem('lanx_client_platform', selectedPlat);
+                        this.updateHeaderProfileBadge();
+                        this.closeModal(modal);
+                        this.showToast('Profil perangkat berhasil disimpan!', 'success');
+
+                        // Update websocket hub
+                        this.registerWithHub();
+                        if (typeof Devices !== 'undefined') Devices.loadDevices();
+                    } else {
+                        const err = await res.json();
+                        this.showToast(err.error || 'Gagal menyimpan profil', 'error');
+                    }
+                } catch (e) {
+                    this.showToast('Gagal menyimpan profil', 'error');
+                }
+            });
+        }
+
+        this.updateHeaderProfileBadge();
+    },
+
     // ─── Modals ──────────────────────────────────────────
 
     setupModals() {
@@ -352,6 +490,16 @@ const LANX = {
             case 'device_offline':
             case 'device_update':
                 if (typeof Devices !== 'undefined') Devices.handleEvent(msg);
+                if (msg.type === 'device_update' && msg.device) {
+                    const myId = this.clientId || (this.deviceInfo && this.deviceInfo.id);
+                    if (msg.device.id === myId) {
+                        this.clientName = msg.device.name;
+                        if (msg.device.platform) this.platform = msg.device.platform;
+                        localStorage.setItem('lanx_client_name', this.clientName);
+                        localStorage.setItem('lanx_client_platform', this.platform);
+                        this.updateHeaderProfileBadge();
+                    }
+                }
                 break;
 
             case 'transfer_complete':

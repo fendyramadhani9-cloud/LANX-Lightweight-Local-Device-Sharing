@@ -1,6 +1,6 @@
 /**
  * LANX — Device Discovery Module
- * Handles: nearby device display, device selection, send mode (1-per-1 vs All Devices), polling
+ * Handles: nearby device display, device selection, send mode (1-per-1 vs All Devices), polling, device rename
  */
 
 const Devices = {
@@ -20,6 +20,7 @@ const Devices = {
         }
 
         this.setupModeSwitch();
+        this.setupRenameModal();
         this.loadDevices();
         // Poll for device changes every 10 seconds
         this.pollTimer = setInterval(() => this.loadDevices(), 10000);
@@ -38,6 +39,81 @@ const Devices = {
 
         this.updateModeButtons();
         this.updateTargetDisplay();
+    },
+
+    setupRenameModal() {
+        const modal = document.getElementById('rename-modal');
+        const btnClose = document.getElementById('btn-close-rename');
+        const btnCancel = document.getElementById('btn-cancel-rename');
+        const btnSave = document.getElementById('btn-save-rename');
+
+        const closeIt = () => {
+            if (modal) modal.style.display = 'none';
+        };
+
+        if (btnClose) btnClose.addEventListener('click', closeIt);
+        if (btnCancel) btnCancel.addEventListener('click', closeIt);
+        if (modal) {
+            modal.addEventListener('click', (e) => {
+                if (e.target === modal) closeIt();
+            });
+        }
+
+        if (btnSave) {
+            btnSave.addEventListener('click', async () => {
+                const id = document.getElementById('rename-device-id')?.value;
+                const input = document.getElementById('rename-device-input');
+                const newName = input ? input.value.trim() : '';
+
+                if (!id || !newName) {
+                    LANX.showToast('Nama perangkat tidak boleh kosong', 'error');
+                    return;
+                }
+
+                try {
+                    const res = await fetch(`/api/devices/${encodeURIComponent(id)}`, {
+                        method: 'PUT',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ name: newName }),
+                    });
+
+                    if (res.ok) {
+                        const updated = await res.json();
+                        this.addOrUpdateDevice(updated, updated.online);
+                        closeIt();
+                        LANX.showToast(`Nama perangkat diubah menjadi "${newName}"`, 'success');
+                    } else {
+                        const err = await res.json();
+                        LANX.showToast(err.error || 'Gagal mengubah nama perangkat', 'error');
+                    }
+                } catch (e) {
+                    LANX.showToast('Gagal mengubah nama perangkat', 'error');
+                }
+            });
+        }
+    },
+
+    openRenameModal(deviceId) {
+        const dev = this.getDeviceById(deviceId);
+        if (!dev) return;
+
+        const modal = document.getElementById('rename-modal');
+        const idInput = document.getElementById('rename-device-id');
+        const nameInput = document.getElementById('rename-device-input');
+
+        if (idInput) idInput.value = deviceId;
+        if (nameInput) {
+            nameInput.value = dev.name;
+            nameInput.placeholder = dev.name;
+        }
+
+        if (modal) {
+            modal.style.display = 'flex';
+            if (nameInput) {
+                nameInput.focus();
+                nameInput.select();
+            }
+        }
     },
 
     setSendMode(mode) {
@@ -149,9 +225,20 @@ const Devices = {
 
         // Attach click handlers
         grid.querySelectorAll('.device-card').forEach(card => {
-            card.addEventListener('click', () => {
+            card.addEventListener('click', (e) => {
+                // Ignore if clicked on rename button
+                if (e.target.closest('.device-card-rename-btn')) return;
                 const id = card.dataset.deviceId;
                 this.selectDevice(id);
+            });
+        });
+
+        // Attach rename button click handlers
+        grid.querySelectorAll('.device-card-rename-btn').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                const id = btn.dataset.renameId;
+                this.openRenameModal(id);
             });
         });
     },
@@ -180,7 +267,7 @@ const Devices = {
     },
 
     renderCard(device) {
-        const icon = this.getDeviceIcon(device.name);
+        const icon = this.getDeviceIcon(device.name, device.platform);
         const isOnline = device.online !== false;
         const isSelected = this.sendMode === 'single' && this.selectedDevice === device.id;
 
@@ -188,23 +275,33 @@ const Devices = {
             <div class="device-card ${isSelected ? 'selected' : ''}" data-device-id="${device.id}">
                 <div class="device-card-icon">${icon}</div>
                 <div class="device-card-info">
-                    <div class="device-card-name">${LANX.escapeHtml(device.name)}</div>
+                    <div class="device-card-name" title="${LANX.escapeHtml(device.name)}">${LANX.escapeHtml(device.name)}</div>
                     <div class="device-card-status">
                         <span class="status-dot ${isOnline ? 'online' : 'offline'}"></span>
                         ${isOnline ? 'Online' : 'Offline'}
                     </div>
                 </div>
+                <button class="device-card-rename-btn" data-rename-id="${device.id}" title="Ubah nama / alias perangkat ini">
+                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
+                        <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
+                    </svg>
+                </button>
             </div>
         `;
     },
 
-    getDeviceIcon(name) {
+    getDeviceIcon(name, platform) {
+        if (platform === 'mobile') return '📱';
+        if (platform === 'tablet') return '📟';
+        if (platform === 'desktop') return '💻';
+
         const lower = (name || '').toLowerCase();
-        if (lower.includes('phone') || lower.includes('mobile') || lower.includes('android') || lower.includes('iphone')) {
+        if (lower.includes('phone') || lower.includes('mobile') || lower.includes('android') || lower.includes('iphone') || lower.includes('hp')) {
             return '📱';
         }
         if (lower.includes('tablet') || lower.includes('ipad')) {
-            return '📱';
+            return '📟';
         }
         if (lower.includes('server')) {
             return '🖥️';

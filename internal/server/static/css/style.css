@@ -1420,3 +1420,129 @@ body {
         justify-content: center;
     }
 }
+
+/* ============================================
+   Device Profile & Identity Customization
+   ============================================ */
+
+.my-device-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 14px;
+    background: var(--color-surface);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-full);
+    cursor: pointer;
+    transition: all var(--transition);
+    text-decoration: none;
+    font-family: var(--font-family);
+}
+
+.my-device-badge:hover {
+    border-color: var(--color-primary);
+    background: var(--color-primary-light);
+    box-shadow: var(--shadow-sm);
+    transform: translateY(-1px);
+}
+
+.my-device-icon {
+    font-size: 1.1rem;
+    line-height: 1;
+}
+
+.my-device-name {
+    font-size: var(--font-size-sm);
+    font-weight: 600;
+    color: var(--color-text);
+    max-width: 150px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.my-device-edit-icon {
+    color: var(--color-text-tertiary);
+    transition: color var(--transition);
+}
+
+.my-device-badge:hover .my-device-edit-icon {
+    color: var(--color-primary);
+}
+
+/* Quick Rename Button on Device Card */
+.device-card-rename-btn {
+    opacity: 0.6;
+    background: transparent;
+    border: none;
+    color: var(--color-text-tertiary);
+    cursor: pointer;
+    padding: 4px;
+    border-radius: var(--radius-sm);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    transition: all var(--transition);
+    margin-left: auto;
+    flex-shrink: 0;
+}
+
+.device-card:hover .device-card-rename-btn {
+    opacity: 1;
+}
+
+.device-card-rename-btn:hover {
+    background: var(--color-surface-hover);
+    color: var(--color-primary);
+    transform: scale(1.1);
+}
+
+/* Platform Pills in Profile Modal */
+.platform-pills {
+    display: flex;
+    gap: var(--space-sm);
+    flex-wrap: wrap;
+    margin-top: 6px;
+}
+
+.platform-pill {
+    cursor: pointer;
+    user-select: none;
+}
+
+.platform-pill input[type="radio"] {
+    display: none;
+}
+
+.platform-pill-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 14px;
+    border-radius: var(--radius-sm);
+    border: 1px solid var(--color-border);
+    background: var(--color-surface);
+    color: var(--color-text-secondary);
+    font-size: var(--font-size-sm);
+    font-weight: 500;
+    transition: all var(--transition);
+}
+
+.platform-pill-btn:hover {
+    background: var(--color-surface-hover);
+    color: var(--color-text);
+}
+
+.platform-pill input[type="radio"]:checked + .platform-pill-btn {
+    background: var(--color-primary-light);
+    border-color: var(--color-primary);
+    color: var(--color-primary);
+    font-weight: 600;
+}
+
+.profile-info-box {
+    background: var(--color-bg);
+    border: 1px solid var(--color-border-light);
+    border-radius: var(--radius-sm);
+    padding: 8px 12px;
+}

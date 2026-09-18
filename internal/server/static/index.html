@@ -23,6 +23,14 @@
                 <h1 class="header-title">LANX</h1>
             </div>
             <div class="header-actions">
+                <button class="my-device-badge" id="btn-my-profile" title="Ubah Nama & Profil Perangkat Ini" aria-label="Profil Perangkat">
+                    <span class="my-device-icon" id="my-device-icon">💻</span>
+                    <span class="my-device-name" id="my-device-name">Perangkat Saya</span>
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="my-device-edit-icon">
+                        <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
+                        <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
+                    </svg>
+                </button>
                 <button class="btn-icon" id="btn-pair" title="Pair device" aria-label="Pair device">
                     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                         <rect x="2" y="2" width="8" height="8" rx="1"/>
@@ -319,6 +327,83 @@
             <div class="modal-footer" style="justify-content: center; gap: 12px;">
                 <button class="btn btn-ghost" id="btn-reject-incoming">Dismiss</button>
                 <button class="btn btn-primary" id="btn-accept-incoming">Accept</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- My Device Profile Modal -->
+    <div class="modal-overlay" id="profile-modal" style="display: none;">
+        <div class="modal modal-sm">
+            <div class="modal-header">
+                <h2 class="modal-title">Profil Perangkat Ini</h2>
+                <button class="btn-icon" id="btn-close-profile" aria-label="Tutup profil">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <line x1="18" y1="6" x2="6" y2="18"/>
+                        <line x1="6" y1="6" x2="18" y2="18"/>
+                    </svg>
+                </button>
+            </div>
+            <div class="modal-body">
+                <div class="settings-group">
+                    <div class="settings-field">
+                        <label class="settings-label" for="profile-device-name">Nama Perangkat</label>
+                        <input type="text" class="settings-input" id="profile-device-name" maxlength="64" placeholder="Contoh: Laptop Kerja, HP Fendy">
+                        <p class="settings-hint" style="font-size: var(--font-size-xs); color: var(--color-text-tertiary); margin-top: 4px;">Nama ini akan terlihat oleh semua perangkat lain di jaringan.</p>
+                    </div>
+                    <div class="settings-field" style="margin-top: 14px;">
+                        <label class="settings-label">Tipe Perangkat</label>
+                        <div class="platform-pills">
+                            <label class="platform-pill">
+                                <input type="radio" name="profile-platform" value="desktop" id="plat-desktop">
+                                <span class="platform-pill-btn">💻 Laptop / PC</span>
+                            </label>
+                            <label class="platform-pill">
+                                <input type="radio" name="profile-platform" value="mobile" id="plat-mobile">
+                                <span class="platform-pill-btn">📱 Ponsel / HP</span>
+                            </label>
+                            <label class="platform-pill">
+                                <input type="radio" name="profile-platform" value="tablet" id="plat-tablet">
+                                <span class="platform-pill-btn">📟 Tablet</span>
+                            </label>
+                        </div>
+                    </div>
+                    <div class="profile-info-box" style="margin-top: 12px; font-size: var(--font-size-xs); color: var(--color-text-tertiary);">
+                        <div>ID Klien: <code id="profile-device-id" style="color: var(--color-primary);">-</code></div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer" style="justify-content: flex-end; gap: 8px;">
+                <button class="btn btn-ghost" id="btn-cancel-profile">Batal</button>
+                <button class="btn btn-primary" id="btn-save-profile">Simpan Profil</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Rename Peer Device Modal -->
+    <div class="modal-overlay" id="rename-modal" style="display: none;">
+        <div class="modal modal-sm">
+            <div class="modal-header">
+                <h2 class="modal-title">Ubah Nama Perangkat</h2>
+                <button class="btn-icon" id="btn-close-rename" aria-label="Tutup ubah nama">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <line x1="18" y1="6" x2="6" y2="18"/>
+                        <line x1="6" y1="6" x2="18" y2="18"/>
+                    </svg>
+                </button>
+            </div>
+            <div class="modal-body">
+                <div class="settings-group">
+                    <div class="settings-field">
+                        <label class="settings-label" for="rename-device-input">Beri nama baru / alias:</label>
+                        <input type="text" class="settings-input" id="rename-device-input" maxlength="64" placeholder="Contoh: HP Kantor, Laptop B">
+                        <input type="hidden" id="rename-device-id">
+                        <p class="settings-hint" style="font-size: var(--font-size-xs); color: var(--color-text-tertiary); margin-top: 4px;">Nama ini akan disimpan permanen di database LANX.</p>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer" style="justify-content: flex-end; gap: 8px;">
+                <button class="btn btn-ghost" id="btn-cancel-rename">Batal</button>
+                <button class="btn btn-primary" id="btn-save-rename">Simpan Perubahan</button>
             </div>
         </div>
     </div>
