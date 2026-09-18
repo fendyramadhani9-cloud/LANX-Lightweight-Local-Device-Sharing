@@ -6,6 +6,7 @@ import (
 	"log"
 	"net"
 	"net/http"
+	"strings"
 	"sync"
 	"time"
 
@@ -62,7 +63,11 @@ func (h *Hub) HandleWS(w http.ResponseWriter, r *http.Request) {
 	}
 
 	remoteIP := r.RemoteAddr
-	if host, _, err := net.SplitHostPort(remoteIP); err == nil {
+	if cfIP := r.Header.Get("CF-Connecting-IP"); cfIP != "" {
+		remoteIP = strings.TrimSpace(cfIP)
+	} else if xff := r.Header.Get("X-Forwarded-For"); xff != "" {
+		remoteIP = strings.TrimSpace(strings.Split(xff, ",")[0])
+	} else if host, _, err := net.SplitHostPort(remoteIP); err == nil {
 		remoteIP = host
 	}
 
