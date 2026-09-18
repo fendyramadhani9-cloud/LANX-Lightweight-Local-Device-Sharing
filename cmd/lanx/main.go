@@ -165,6 +165,8 @@ func main() {
 		wsHub.Broadcast(eventType, data)
 	})
 	transferHandler.SetMailbox(mailbox, wsHub.IsDeviceOnline)
+	transferHandler.SetAutoDeleteDelivered(cfg.AutoDeleteDelivered)
+	transferHandler.StartAutoCleaner(30*time.Minute, 24*time.Hour)
 
 	// Create pairing manager
 	pairingMgr := pairing.NewManager(cfg.Port, func(eventType string, data any) {

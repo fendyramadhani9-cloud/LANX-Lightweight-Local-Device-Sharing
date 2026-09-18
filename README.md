@@ -9,6 +9,7 @@ Seluruh antarmuka web modern dikompilasi langsung ke dalam satu berkas biner man
 ## Fitur Unggulan
 
 - 📬 **Kotak Masuk / Offline Queue (Store-and-Forward)**: Tetap bisa mengirim berkas, tugas, folder, atau teks ke komputer mana pun yang terdaftar meski komputer tujuan sedang **mati atau offline**. Berkas disimpan aman di server, dan begitu komputer tujuan menyala / terhubung ke LANX, semua berkas langsung otomatis terkirim dan terunduh!
+- 🗑️ **Auto-Delete on Delivery & Anti-Penuh Server**: Harddisk server dijamin tidak akan membengkak. Berkas 1-per-1 otomatis langsung dihapus dari server begitu komputer penerima selesai mengunduhnya. Terdapat juga pembersih berkas usang otomatis (background cleaner) dan tombol *Bersihkan Server* di menu Pengaturan.
 - ⚡ **Auto-Accept / Auto-Download**: Opsi untuk otomatis mengunduh berkas langsung ke folder `Downloads` laptop/PC tanpa perlu mengeklik tombol unduh setiap saat.
 - 👁️ **In-Browser Media Preview (Lightbox Viewer)**: Pratinjau foto resolusi penuh, pemutar video native (`.mp4`, `.webm`, `.mov`), pemutar audio musik (`.mp3`, `.wav`, `.m4a`), dokumen PDF, dan file teks/kode (`.txt`, `.json`, `.md`) langsung di peramban tanpa harus membuka folder download.
 - 📸 **Kamera Cepat / Instant Photo Shot (Khusus Mobile)**: Tombol kamera instan di ponsel untuk memotret catatan fisik/papan tulis dan langsung otomatis terkirim ke komputer target.

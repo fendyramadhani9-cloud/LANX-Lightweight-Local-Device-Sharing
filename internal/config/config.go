@@ -19,12 +19,13 @@ const (
 
 // Config holds the application configuration.
 type Config struct {
-	DeviceID     string `json:"device_id"`
-	DeviceName   string `json:"device_name"`
-	Port         int    `json:"port"`
-	DownloadPath string `json:"download_path"`
-	Theme        string `json:"theme"`
-	PairingReq   bool   `json:"pairing_required"`
+	DeviceID            string `json:"device_id"`
+	DeviceName          string `json:"device_name"`
+	Port                int    `json:"port"`
+	DownloadPath        string `json:"download_path"`
+	Theme               string `json:"theme"`
+	PairingReq          bool   `json:"pairing_required"`
+	AutoDeleteDelivered bool   `json:"auto_delete_delivered"`
 
 	mu       sync.RWMutex `json:"-"`
 	filePath string       `json:"-"`
@@ -47,7 +48,7 @@ func Load(dataDir string) (*Config, error) {
 	}
 
 	cfgPath := filepath.Join(dataDir, ConfigFile)
-	cfg := &Config{filePath: cfgPath}
+	cfg := &Config{filePath: cfgPath, AutoDeleteDelivered: true}
 
 	data, err := os.ReadFile(cfgPath)
 	if err != nil {
@@ -61,6 +62,7 @@ func Load(dataDir string) (*Config, error) {
 		cfg.DownloadPath = dlDir
 		cfg.Theme = "light"
 		cfg.PairingReq = true
+		cfg.AutoDeleteDelivered = true
 
 		if err := cfg.Save(); err != nil {
 			return nil, fmt.Errorf("save default config: %w", err)

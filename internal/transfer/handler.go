@@ -14,6 +14,7 @@ import (
 	"regexp"
 	"strings"
 	"sync"
+	"time"
 )
 
 const (
@@ -31,10 +32,12 @@ type FileStore struct {
 
 // StoredFile holds metadata about a stored file.
 type StoredFile struct {
-	ID       string
-	Filename string
-	Path     string
-	Size     int64
+	ID             string
+	Filename       string
+	Path           string
+	Size           int64
+	TargetDeviceID string
+	CreatedAt      time.Time
 }
 
 // NewFileStore creates a new file store.
@@ -45,17 +48,52 @@ func NewFileStore() *FileStore {
 }
 
 // Add registers a file for download.
-func (fs *FileStore) Add(filename, path string, size int64) string {
+func (fs *FileStore) Add(filename, path string, size int64, targetDeviceID ...string) string {
 	id := generateDownloadID()
+	targetID := ""
+	if len(targetDeviceID) > 0 {
+		targetID = targetDeviceID[0]
+	}
 	fs.mu.Lock()
 	fs.files[id] = &StoredFile{
-		ID:       id,
-		Filename: filename,
-		Path:     path,
-		Size:     size,
+		ID:             id,
+		Filename:       filename,
+		Path:           path,
+		Size:           size,
+		TargetDeviceID: targetID,
+		CreatedAt:      time.Now(),
 	}
 	fs.mu.Unlock()
 	return id
+}
+
+// Remove deletes a stored file by download ID and returns it.
+func (fs *FileStore) Remove(id string) (*StoredFile, bool) {
+	fs.mu.Lock()
+	defer fs.mu.Unlock()
+	f, ok := fs.files[id]
+	if ok {
+		delete(fs.files, id)
+	}
+	return f, ok
+}
+
+// CleanExpired removes stored files created before cutoff.
+func (fs *FileStore) CleanExpired(cutoff time.Time) {
+	fs.mu.Lock()
+	defer fs.mu.Unlock()
+	for id, f := range fs.files {
+		if f.CreatedAt.Before(cutoff) {
+			delete(fs.files, id)
+		}
+	}
+}
+
+// ClearAll removes all entries from FileStore.
+func (fs *FileStore) ClearAll() {
+	fs.mu.Lock()
+	defer fs.mu.Unlock()
+	fs.files = make(map[string]*StoredFile)
 }
 
 // Get retrieves a stored file by download ID.
@@ -68,22 +106,62 @@ func (fs *FileStore) Get(id string) (*StoredFile, bool) {
 
 // Handler provides HTTP handlers for file upload/download.
 type Handler struct {
-	mgr             *Manager
-	store           *FileStore
-	downloadDir     string
-	onTransferEvent func(eventType string, data any)
-	mailbox         *Mailbox
-	isOnline        func(id string) bool
+	mgr                 *Manager
+	store               *FileStore
+	downloadDir         string
+	onTransferEvent     func(eventType string, data any)
+	mailbox             *Mailbox
+	isOnline            func(id string) bool
+	autoDeleteDelivered bool
 }
 
 // NewHandler creates a new transfer handler.
 func NewHandler(mgr *Manager, downloadDir string, onEvent func(string, any)) *Handler {
 	return &Handler{
-		mgr:             mgr,
-		store:           NewFileStore(),
-		downloadDir:     downloadDir,
-		onTransferEvent: onEvent,
+		mgr:                 mgr,
+		store:               NewFileStore(),
+		downloadDir:         downloadDir,
+		onTransferEvent:     onEvent,
+		autoDeleteDelivered: true,
 	}
+}
+
+// SetAutoDeleteDelivered configures whether files are removed from server after delivery.
+func (h *Handler) SetAutoDeleteDelivered(enabled bool) {
+	h.autoDeleteDelivered = enabled
+}
+
+// StartAutoCleaner runs periodic background cleanup of old files.
+func (h *Handler) StartAutoCleaner(interval time.Duration, maxAge time.Duration) {
+	go func() {
+		ticker := time.NewTicker(interval)
+		defer ticker.Stop()
+		for range ticker.C {
+			h.cleanupOldFiles(maxAge)
+		}
+	}()
+}
+
+func (h *Handler) cleanupOldFiles(maxAge time.Duration) {
+	entries, err := os.ReadDir(h.downloadDir)
+	if err != nil {
+		return
+	}
+	cutoff := time.Now().Add(-maxAge)
+	for _, entry := range entries {
+		if entry.IsDir() {
+			continue
+		}
+		info, err := entry.Info()
+		if err != nil {
+			continue
+		}
+		if info.ModTime().Before(cutoff) {
+			path := filepath.Join(h.downloadDir, entry.Name())
+			_ = os.Remove(path)
+		}
+	}
+	h.store.CleanExpired(cutoff)
 }
 
 // SetMailbox configures offline mailbox queue and online status checker.
@@ -98,6 +176,8 @@ func (h *Handler) RegisterRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("POST /api/upload-folder", h.handleUploadFolder)
 	mux.HandleFunc("GET /api/download/{id}", h.handleDownload)
 	mux.HandleFunc("GET /api/transfers", h.handleListTransfers)
+	mux.HandleFunc("GET /api/storage/stats", h.handleStorageStats)
+	mux.HandleFunc("POST /api/storage/clean", h.handleStorageClean)
 }
 
 func (h *Handler) handleUpload(w http.ResponseWriter, r *http.Request) {
@@ -206,7 +286,7 @@ func (h *Handler) handleUpload(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Register for download
-	downloadID := h.store.Add(filename, destPath, written)
+	downloadID := h.store.Add(filename, destPath, written, targetDeviceID)
 
 	// Mark complete
 	h.mgr.Complete(t.ID, downloadID)
@@ -368,7 +448,7 @@ func (h *Handler) handleUploadFolder(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Register for download
-	downloadID := h.store.Add(folderName, destPath, zipSize)
+	downloadID := h.store.Add(folderName, destPath, zipSize, targetDeviceID)
 
 	// Complete transfer
 	h.mgr.Complete(t.ID, downloadID)
@@ -439,6 +519,67 @@ func (h *Handler) handleDownload(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", mimeType)
 
 	http.ServeFile(w, r, sf.Path)
+
+	// Auto-delete on delivery:
+	// If direct 1-to-1 transfer to specific device and actual download (not preview)
+	if !isPreview && h.autoDeleteDelivered && sf.TargetDeviceID != "" && sf.TargetDeviceID != "all" {
+		go func(filePath string, fileID string) {
+			// Small grace period of 8 seconds to allow download completion
+			time.Sleep(8 * time.Second)
+			_ = os.Remove(filePath)
+			h.store.Remove(fileID)
+		}(sf.Path, sf.ID)
+	}
+}
+
+func (h *Handler) handleStorageStats(w http.ResponseWriter, r *http.Request) {
+	var count int
+	var totalBytes int64
+
+	entries, err := os.ReadDir(h.downloadDir)
+	if err == nil {
+		for _, entry := range entries {
+			if !entry.IsDir() {
+				if info, err := entry.Info(); err == nil {
+					count++
+					totalBytes += info.Size()
+				}
+			}
+		}
+	}
+
+	writeJSON(w, http.StatusOK, map[string]any{
+		"file_count":            count,
+		"total_bytes":           totalBytes,
+		"auto_delete_delivered": h.autoDeleteDelivered,
+	})
+}
+
+func (h *Handler) handleStorageClean(w http.ResponseWriter, r *http.Request) {
+	var deletedCount int
+	var freedBytes int64
+
+	entries, err := os.ReadDir(h.downloadDir)
+	if err == nil {
+		for _, entry := range entries {
+			if !entry.IsDir() {
+				if info, err := entry.Info(); err == nil {
+					path := filepath.Join(h.downloadDir, entry.Name())
+					if err := os.Remove(path); err == nil {
+						deletedCount++
+						freedBytes += info.Size()
+					}
+				}
+			}
+		}
+	}
+	h.store.ClearAll()
+
+	writeJSON(w, http.StatusOK, map[string]any{
+		"deleted_count": deletedCount,
+		"freed_bytes":   freedBytes,
+		"message":       "Penyimpanan server berhasil dibersihkan",
+	})
 }
 
 func getMimeType(filename string) string {

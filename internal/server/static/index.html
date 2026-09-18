@@ -306,6 +306,25 @@
                             <span class="toggle-slider"></span>
                         </label>
                     </div>
+                    <div class="settings-field settings-toggle-field" style="margin-top: 12px;">
+                        <div>
+                            <label class="settings-label" for="setting-auto-delete">Hapus Otomatis di Server Setelah Diterima (Auto-Delete on Delivery)</label>
+                            <p class="settings-hint" style="font-size: var(--font-size-xs); color: var(--color-text-tertiary); margin-top: 2px;">Langsung hapus berkas fisik di server begitu komputer penerima selesai mengunduhnya agar disk server tidak penuh.</p>
+                        </div>
+                        <label class="toggle">
+                            <input type="checkbox" id="setting-auto-delete" checked>
+                            <span class="toggle-slider"></span>
+                        </label>
+                    </div>
+                    <div class="settings-field" style="margin-top: 14px; padding-top: 10px; border-top: 1px solid var(--color-border-light); display: flex; align-items: center; justify-content: space-between;">
+                        <div>
+                            <label class="settings-label">Penyimpanan Server</label>
+                            <p class="settings-hint" id="storage-usage-text" style="font-size: var(--font-size-xs); color: var(--color-text-tertiary); margin-top: 2px;">Memuat...</p>
+                        </div>
+                        <button type="button" class="btn btn-sm btn-ghost" id="btn-clean-server-storage" style="color: #ef4444; border-color: rgba(239, 68, 68, 0.3);">
+                            🗑️ Bersihkan Server
+                        </button>
+                    </div>
                 </div>
                 <div class="settings-group">
                     <h4 class="settings-group-title">Security</h4>

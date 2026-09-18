@@ -2,10 +2,12 @@ package transfer
 
 import (
 	"bytes"
+	"encoding/json"
 	"mime/multipart"
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"path/filepath"
 	"testing"
 )
 
@@ -343,6 +345,49 @@ func TestDownloadPreviewHandler(t *testing.T) {
 	}
 	if ctype := wTxt.Header().Get("Content-Type"); !bytes.Contains([]byte(ctype), []byte("text/plain")) {
 		t.Errorf("expected text/plain, got %s", ctype)
+	}
+}
+
+func TestStorageStatsAndClean(t *testing.T) {
+	tmpDir := t.TempDir()
+	mgr := NewManager(func(t *Transfer) {})
+	handler := NewHandler(mgr, tmpDir, func(eventType string, data any) {})
+
+	filePath := filepath.Join(tmpDir, "file_to_clean.dat")
+	if err := os.WriteFile(filePath, []byte("some dummy content for storage"), 0644); err != nil {
+		t.Fatal(err)
+	}
+	handler.store.Add("file_to_clean.dat", filePath, 30)
+
+	mux := http.NewServeMux()
+	handler.RegisterRoutes(mux)
+
+	// Test GET /api/storage/stats
+	reqStats := httptest.NewRequest("GET", "/api/storage/stats", nil)
+	wStats := httptest.NewRecorder()
+	mux.ServeHTTP(wStats, reqStats)
+	if wStats.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d", wStats.Code)
+	}
+	var stats map[string]any
+	if err := json.Unmarshal(wStats.Body.Bytes(), &stats); err != nil {
+		t.Fatal(err)
+	}
+	if count, ok := stats["file_count"].(float64); !ok || count < 1 {
+		t.Errorf("expected file_count >= 1, got %v", stats["file_count"])
+	}
+
+	// Test POST /api/storage/clean
+	reqClean := httptest.NewRequest("POST", "/api/storage/clean", nil)
+	wClean := httptest.NewRecorder()
+	mux.ServeHTTP(wClean, reqClean)
+	if wClean.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d", wClean.Code)
+	}
+
+	// Verify file was deleted from disk
+	if _, err := os.Stat(filePath); !os.IsNotExist(err) {
+		t.Errorf("file should have been deleted from disk after clean")
 	}
 }
 

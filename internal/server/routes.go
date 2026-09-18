@@ -91,20 +91,22 @@ func (s *Server) handleUpdateDevice(w http.ResponseWriter, r *http.Request) {
 // --- Settings endpoints ---
 
 type settingsResponse struct {
-	DeviceName   string `json:"device_name"`
-	Port         int    `json:"port"`
-	DownloadPath string `json:"download_path"`
-	Theme        string `json:"theme"`
-	PairingReq   bool   `json:"pairing_required"`
+	DeviceName          string `json:"device_name"`
+	Port                int    `json:"port"`
+	DownloadPath        string `json:"download_path"`
+	Theme               string `json:"theme"`
+	PairingReq          bool   `json:"pairing_required"`
+	AutoDeleteDelivered bool   `json:"auto_delete_delivered"`
 }
 
 func (s *Server) handleGetSettings(w http.ResponseWriter, r *http.Request) {
 	resp := settingsResponse{
-		DeviceName:   s.cfg.DeviceName,
-		Port:         s.cfg.Port,
-		DownloadPath: s.cfg.DownloadPath,
-		Theme:        s.cfg.Theme,
-		PairingReq:   s.cfg.PairingReq,
+		DeviceName:          s.cfg.DeviceName,
+		Port:                s.cfg.Port,
+		DownloadPath:        s.cfg.DownloadPath,
+		Theme:               s.cfg.Theme,
+		PairingReq:          s.cfg.PairingReq,
+		AutoDeleteDelivered: s.cfg.AutoDeleteDelivered,
 	}
 	writeJSON(w, http.StatusOK, resp)
 }
@@ -124,6 +126,7 @@ func (s *Server) handleUpdateSettings(w http.ResponseWriter, r *http.Request) {
 			c.Theme = req.Theme
 		}
 		c.PairingReq = req.PairingReq
+		c.AutoDeleteDelivered = req.AutoDeleteDelivered
 	}); err != nil {
 		writeError(w, http.StatusInternalServerError, "Failed to save settings")
 		return

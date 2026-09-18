@@ -186,10 +186,45 @@ const LANX = {
         btnClose.addEventListener('click', () => this.closeModal(modal));
         btnSave.addEventListener('click', () => this.saveSettings());
 
+        const btnCleanStorage = document.getElementById('btn-clean-server-storage');
+        if (btnCleanStorage) {
+            btnCleanStorage.addEventListener('click', async () => {
+                if (!confirm('Hapus semua berkas sementara yang tersimpan di server sekarang?')) return;
+                try {
+                    const res = await fetch('/api/storage/clean', { method: 'POST' });
+                    if (res.ok) {
+                        const data = await res.json();
+                        this.showToast(`Penyimpanan server dibersihkan (${data.deleted_count} berkas)`, 'success');
+                        this.loadStorageStats();
+                    } else {
+                        this.showToast('Gagal membersihkan penyimpanan server', 'error');
+                    }
+                } catch (e) {
+                    this.showToast('Gagal membersihkan penyimpanan server', 'error');
+                }
+            });
+        }
+
         // Close on overlay click
         modal.addEventListener('click', (e) => {
             if (e.target === modal) this.closeModal(modal);
         });
+    },
+
+    async loadStorageStats() {
+        const textEl = document.getElementById('storage-usage-text');
+        if (!textEl) return;
+        try {
+            const res = await fetch('/api/storage/stats');
+            if (res.ok) {
+                const data = await res.json();
+                textEl.textContent = `${data.file_count} berkas (${this.formatSize(data.total_bytes)})`;
+            } else {
+                textEl.textContent = '-';
+            }
+        } catch (e) {
+            textEl.textContent = '-';
+        }
     },
 
     openSettings() {
@@ -197,11 +232,15 @@ const LANX = {
         const nameInput = document.getElementById('setting-device-name');
         const pairingInput = document.getElementById('setting-pairing');
         const autoDownloadInput = document.getElementById('setting-auto-download');
+        const autoDeleteInput = document.getElementById('setting-auto-delete');
         const versionSpan = document.getElementById('settings-version');
 
         if (this.settings) {
             nameInput.value = this.settings.device_name || '';
             pairingInput.checked = this.settings.pairing_required;
+            if (autoDeleteInput) {
+                autoDeleteInput.checked = this.settings.auto_delete_delivered !== false;
+            }
         }
         if (autoDownloadInput) {
             autoDownloadInput.checked = this.autoDownload;
@@ -209,6 +248,9 @@ const LANX = {
         if (this.deviceInfo) {
             versionSpan.textContent = this.deviceInfo.version || '1.0.0';
         }
+
+        // Load current disk storage usage
+        this.loadStorageStats();
 
         // Theme radios
         const theme = this.settings?.theme || localStorage.getItem('lanx-theme') || 'light';
@@ -221,6 +263,7 @@ const LANX = {
     async saveSettings() {
         const name = document.getElementById('setting-device-name').value.trim();
         const pairing = document.getElementById('setting-pairing').checked;
+        const autoDelete = document.getElementById('setting-auto-delete')?.checked ?? true;
         const theme = document.querySelector('input[name="theme"]:checked')?.value || 'light';
 
         try {
@@ -231,6 +274,7 @@ const LANX = {
                     device_name: name,
                     pairing_required: pairing,
                     theme: theme,
+                    auto_delete_delivered: autoDelete,
                 }),
             });
             if (res.ok) {
