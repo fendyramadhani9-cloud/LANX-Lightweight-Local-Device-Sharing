@@ -318,9 +318,12 @@ const Transfer = {
     // ─── Upload Single File with Speedometer ─────────────
 
     async uploadFile(file, targetDevice) {
+        if (!targetDevice) {
+            targetDevice = (typeof Devices !== 'undefined') ? (Devices.getSelectedDevice() || { id: 'all', name: 'Semua Perangkat (All Devices)' }) : { id: 'all', name: 'Semua Perangkat' };
+        }
         const transferId = this.generateId();
-        const isAll = targetDevice.id === 'all';
-        const targetDisplayName = isAll ? '📢 Semua Perangkat' : targetDevice.name;
+        const isAll = !targetDevice.id || targetDevice.id === 'all';
+        const targetDisplayName = isAll ? '📢 Semua Perangkat' : (targetDevice.name || 'Perangkat');
 
         this.activeTransfers[transferId] = {
             id: transferId,
@@ -429,9 +432,12 @@ const Transfer = {
     // ─── Upload Folder Auto-Zip with Speedometer ─────────
 
     async uploadFolder(folderName, files, targetDevice) {
+        if (!targetDevice) {
+            targetDevice = (typeof Devices !== 'undefined') ? (Devices.getSelectedDevice() || { id: 'all', name: 'Semua Perangkat (All Devices)' }) : { id: 'all', name: 'Semua Perangkat' };
+        }
         const transferId = this.generateId();
-        const isAll = targetDevice.id === 'all';
-        const targetDisplayName = isAll ? '📢 Semua Perangkat' : targetDevice.name;
+        const isAll = !targetDevice.id || targetDevice.id === 'all';
+        const targetDisplayName = isAll ? '📢 Semua Perangkat' : (targetDevice.name || 'Perangkat');
         const totalSize = files.reduce((acc, f) => acc + (f.size || 0), 0);
         const displayZipName = folderName.endsWith('.zip') ? folderName : `${folderName}.zip`;
 
@@ -709,9 +715,18 @@ const Transfer = {
     // ─── WebSocket Events ────────────────────────────────
 
     handleEvent(msg) {
+        const myId = LANX.clientId || (LANX.deviceInfo && LANX.deviceInfo.id);
         switch (msg.type) {
             case 'transfer_started':
                 if (msg.direction === 'receiving') {
+                    // Do not track receiving transfer on the sender itself
+                    if (msg.sender_id && msg.sender_id === myId) {
+                        break;
+                    }
+                    // If targeted to a specific device, ignore if this is not the target device
+                    if (msg.target_device_id && msg.target_device_id !== 'all' && msg.target_device_id !== myId) {
+                        break;
+                    }
                     this.activeTransfers[msg.transfer_id] = {
                         id: msg.transfer_id,
                         filename: msg.filename,
@@ -742,14 +757,17 @@ const Transfer = {
                     this.activeTransfers[msg.transfer_id].percentage = 100;
                     this.activeTransfers[msg.transfer_id].download_id = msg.download_id;
                     this.renderActiveTransfers();
-                    LANX.showToast(`Menerima ${msg.filename}`, 'success');
 
                     setTimeout(() => {
                         delete this.activeTransfers[msg.transfer_id];
                         this.renderActiveTransfers();
                     }, 4000);
                 }
-                this.loadHistory();
+                // Reload history if this transfer was targeted to this device or was sent by this device
+                const isRelevant = !msg.target_device_id || msg.target_device_id === 'all' || msg.target_device_id === myId || msg.sender_id === myId;
+                if (isRelevant) {
+                    this.loadHistory();
+                }
                 break;
 
             case 'transfer_failed':

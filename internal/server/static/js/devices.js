@@ -371,6 +371,10 @@ const Devices = {
 
             select.innerHTML = options.join('');
 
+            // Explicitly sync select value
+            const targetVal = (this.sendMode === 'all' || this.selectedDevice === 'all') ? 'all' : (this.selectedDevice || 'all');
+            select.value = targetVal;
+
             // Bind change event once
             if (!select.dataset.bound) {
                 select.dataset.bound = 'true';
@@ -381,8 +385,10 @@ const Devices = {
                     } else if (val) {
                         this.sendMode = 'single';
                         this.selectedDevice = val;
+                        localStorage.setItem('lanx_send_mode', 'single');
                         this.updateModeButtons();
                         this.render();
+                        this.updateSelects();
                         this.updateTargetDisplay();
                         this.updateSendButtons();
                     }
@@ -410,10 +416,12 @@ const Devices = {
     },
 
     getDeviceById(id) {
-        if (id === 'all') {
+        if (!id || id === 'all') {
             return { id: 'all', name: 'Semua Perangkat (All Devices)' };
         }
-        return this.devices.find(d => d.id === id);
+        const found = (this.devices || []).find(d => d.id === id);
+        if (found) return found;
+        return { id: id, name: 'Perangkat (' + (id.length > 8 ? id.substring(0, 8) + '...' : id) + ')' };
     },
 
     getSelectedDevice() {
@@ -423,7 +431,15 @@ const Devices = {
         if (this.selectedDevice) {
             return this.getDeviceById(this.selectedDevice);
         }
-        return null;
+        // If single mode but no device explicitly selected yet, pick first available
+        const visible = this.getVisibleDevices();
+        if (visible && visible.length > 0) {
+            const online = visible.find(d => d.online !== false);
+            const chosen = online || visible[0];
+            this.selectedDevice = chosen.id;
+            return chosen;
+        }
+        return { id: 'all', name: 'Semua Perangkat (All Devices)' };
     },
 
     handleEvent(msg) {

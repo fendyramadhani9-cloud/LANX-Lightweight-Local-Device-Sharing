@@ -723,6 +723,35 @@ body {
     border-color: var(--color-primary);
 }
 
+.file-target-bar {
+    display: flex;
+    align-items: center;
+    background: var(--color-surface);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+    padding: var(--space-sm) var(--space-md);
+    margin-bottom: var(--space-md);
+    box-shadow: var(--shadow-sm);
+    transition: border-color var(--transition);
+}
+
+.file-target-bar:focus-within {
+    border-color: var(--color-primary);
+}
+
+.file-target-bar .file-select-wrapper {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    gap: var(--space-md);
+}
+
+.file-target-bar .file-select-wrapper select {
+    flex: 1;
+    font-weight: 500;
+    max-width: 480px;
+}
+
 /* --- Clipboard --- */
 .clipboard-input-group {
     display: flex;

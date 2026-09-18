@@ -116,6 +116,16 @@
         <div class="tab-panels">
             <!-- Files Panel -->
             <div class="tab-panel active" id="panel-files">
+                <!-- Target Device Selector Bar for Files -->
+                <div class="file-target-bar" id="file-target-bar">
+                    <div class="device-select-wrapper file-select-wrapper">
+                        <label class="device-select-label" for="file-device-select">🎯 Kirim Berkas ke:</label>
+                        <select class="device-select" id="file-device-select" title="Pilih perangkat tujuan untuk pengiriman berkas">
+                            <option value="all">📢 Semua Perangkat (All Devices)</option>
+                        </select>
+                    </div>
+                </div>
+
                 <!-- Drop Zone -->
                 <div class="drop-zone" id="drop-zone">
                     <div class="drop-zone-content">
