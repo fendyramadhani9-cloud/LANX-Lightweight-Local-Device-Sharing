@@ -1,0 +1,19 @@
+[Unit]
+Description=LANX — Lightweight Local Device Sharing Service
+After=network.target
+
+[Service]
+Type=simple
+User=root
+WorkingDirectory=/opt/lanx
+ExecStart=/opt/lanx/lanx --port 80 --data /var/lib/lanx
+Restart=always
+RestartSec=3s
+LimitNOFILE=65535
+
+# Keamanan dasar sandbox systemd
+ProtectSystem=full
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target

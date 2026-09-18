@@ -1,0 +1,11 @@
+version: '3.8'
+
+services:
+  lanx:
+    build: .
+    container_name: lanx-server
+    restart: unless-stopped
+    ports:
+      - "80:8080"
+    volumes:
+      - ./lanx-data:/data
