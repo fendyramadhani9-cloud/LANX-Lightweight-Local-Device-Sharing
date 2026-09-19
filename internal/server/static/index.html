@@ -16,14 +16,25 @@
         <!-- Desktop Persistent Sidebar (Only visible on screens >= 769px) -->
         <aside class="desktop-sidebar" id="desktop-sidebar">
             <div class="sidebar-brand">
-                <svg class="sidebar-logo" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
-                    <rect width="32" height="32" rx="8" fill="var(--color-primary)"/>
-                    <path d="M8 16L14 10V14H20V18H14V22L8 16Z" fill="white"/>
-                    <path d="M24 16L18 22V18H16V14H18V10L24 16Z" fill="white" opacity="0.6"/>
+                <svg class="sidebar-logo" width="34" height="34" viewBox="0 0 34 34" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <defs>
+                        <linearGradient id="lanxGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+                            <stop offset="0%" stop-color="#3b82f6"/>
+                            <stop offset="100%" stop-color="#6366f1"/>
+                        </linearGradient>
+                    </defs>
+                    <rect width="34" height="34" rx="9" fill="url(#lanxGrad)"/>
+                    <rect x="0.5" y="0.5" width="33" height="33" rx="8.5" stroke="rgba(255,255,255,0.2)"/>
+                    <path d="M9 17H25M9 17L14 12M9 17L14 22" stroke="white" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
+                    <path d="M25 17L20 12M25 17L20 22" stroke="white" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" opacity="0.6"/>
+                    <circle cx="17" cy="17" r="2" fill="white"/>
                 </svg>
                 <div class="sidebar-brand-text">
-                    <span class="sidebar-title">LANX</span>
-                    <span class="sidebar-badge">LAB</span>
+                    <div class="brand-title-wrap">
+                        <span class="brand-title">LANX</span>
+                        <span class="brand-tag">LAB</span>
+                    </div>
+                    <span class="brand-tagline">Local Share</span>
                 </div>
             </div>
 
@@ -94,10 +105,18 @@
             <header class="app-header" id="app-header">
                 <!-- Mobile Brand (Visible only on <= 768px) -->
                 <div class="mobile-brand-wrap">
-                    <svg class="header-logo" width="28" height="28" viewBox="0 0 32 32" fill="none">
-                        <rect width="32" height="32" rx="8" fill="var(--color-primary)"/>
-                        <path d="M8 16L14 10V14H20V18H14V22L8 16Z" fill="white"/>
-                        <path d="M24 16L18 22V18H16V14H18V10L24 16Z" fill="white" opacity="0.6"/>
+                    <svg class="mobile-logo" width="30" height="30" viewBox="0 0 34 34" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <defs>
+                            <linearGradient id="lanxGradMob" x1="0%" y1="0%" x2="100%" y2="100%">
+                                <stop offset="0%" stop-color="#3b82f6"/>
+                                <stop offset="100%" stop-color="#6366f1"/>
+                            </linearGradient>
+                        </defs>
+                        <rect width="34" height="34" rx="9" fill="url(#lanxGradMob)"/>
+                        <rect x="0.5" y="0.5" width="33" height="33" rx="8.5" stroke="rgba(255,255,255,0.2)"/>
+                        <path d="M9 17H25M9 17L14 12M9 17L14 22" stroke="white" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
+                        <path d="M25 17L20 12M25 17L20 22" stroke="white" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" opacity="0.6"/>
+                        <circle cx="17" cy="17" r="2" fill="white"/>
                     </svg>
                     <span class="mobile-brand-title">LANX</span>
                     <span class="mobile-online-dot" title="Online"></span>
@@ -170,47 +189,47 @@
 
             <!-- Main Content Panels -->
             <main class="main" id="main">
-                <!-- Mode Control Ribbon (Integrated for Desktop & Mobile) -->
-                <div class="mode-control-container" id="mode-control-container">
-                    <div class="mode-control-left">
-                        <span class="mode-control-label">Mode Pengiriman:</span>
-                        <div class="mode-switch" id="mode-switch">
-                            <button type="button" class="mode-btn" data-mode="single" id="btn-mode-single" title="Kirim ke satu perangkat tertentu">
-                                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                    <circle cx="12" cy="12" r="10"/>
-                                    <circle cx="12" cy="12" r="3"/>
-                                </svg>
-                                <span>1 per 1 Device</span>
-                            </button>
-                            <button type="button" class="mode-btn active" data-mode="all" id="btn-mode-all" title="Kirim serentak ke semua perangkat di jaringan">
-                                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                    <path d="M4.93 19.07A10 10 0 0 1 12 2a10 10 0 0 1 7.07 17.07"/>
-                                    <path d="M7.76 16.24A6 6 0 0 1 12 6a6 6 0 0 1 4.24 10.24"/>
-                                    <circle cx="12" cy="12" r="2"/>
-                                </svg>
-                                <span>Semua Device (All)</span>
-                                <span class="mode-badge-live">Siaran</span>
-                            </button>
-                        </div>
-                    </div>
-                    <div class="mode-target-info" id="mode-target-info">
-                        <div class="mode-target-row">
-                            <span class="target-indicator-dot"></span>
-                            <span id="mode-target-desc">Target: <strong>Semua Perangkat (All Devices)</strong></span>
-                        </div>
-                        <button type="button" class="quick-auto-download-btn" id="btn-quick-auto-download" title="Klik untuk beralih Terima Berkas Otomatis">
-                            <span class="quick-auto-icon"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg></span>
-                            <span>Auto-Download: <strong id="quick-auto-status">OFF</strong></span>
-                        </button>
-                    </div>
-                </div>
-
                 <!-- Tab Panels -->
                 <div class="tab-panels">
                     <!-- ============================================
                          1. FILES PANEL
                          ============================================ -->
                     <div class="tab-panel active" id="panel-files">
+                        <!-- Mode Control Ribbon (Integrated for Desktop & Mobile) -->
+                        <div class="mode-control-container" id="mode-control-container">
+                            <div class="mode-control-left">
+                                <span class="mode-control-label">Mode Pengiriman:</span>
+                                <div class="mode-switch" id="mode-switch">
+                                    <button type="button" class="mode-btn" data-mode="single" id="btn-mode-single" title="Kirim ke satu perangkat tertentu">
+                                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                            <circle cx="12" cy="12" r="10"/>
+                                            <circle cx="12" cy="12" r="3"/>
+                                        </svg>
+                                        <span>1 per 1 Device</span>
+                                    </button>
+                                    <button type="button" class="mode-btn active" data-mode="all" id="btn-mode-all" title="Kirim serentak ke semua perangkat di jaringan">
+                                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                            <path d="M4.93 19.07A10 10 0 0 1 12 2a10 10 0 0 1 7.07 17.07"/>
+                                            <path d="M7.76 16.24A6 6 0 0 1 12 6a6 6 0 0 1 4.24 10.24"/>
+                                            <circle cx="12" cy="12" r="2"/>
+                                        </svg>
+                                        <span>Semua Device (All)</span>
+                                        <span class="mode-badge-live">Siaran</span>
+                                    </button>
+                                </div>
+                            </div>
+                            <div class="mode-target-info" id="mode-target-info">
+                                <div class="mode-target-row">
+                                    <span class="target-indicator-dot"></span>
+                                    <span id="mode-target-desc">Target: <strong>Semua Perangkat (All Devices)</strong></span>
+                                </div>
+                                <button type="button" class="quick-auto-download-btn" id="btn-quick-auto-download" title="Klik untuk beralih Terima Berkas Otomatis">
+                                    <span class="quick-auto-icon"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg></span>
+                                    <span>Auto-Download: <strong id="quick-auto-status">OFF</strong></span>
+                                </button>
+                            </div>
+                        </div>
+
                         <!-- Desktop Drag & Drop Zone -->
                         <div class="drop-zone desktop-drop-zone" id="drop-zone">
                             <div class="drop-zone-content">
@@ -312,13 +331,6 @@
                                 <div class="library-quota-progress">
                                     <div class="library-quota-fill" id="library-quota-fill" style="width: 0%;"></div>
                                 </div>
-                            </div>
-                            <div class="library-search-wrap">
-                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                    <circle cx="11" cy="11" r="8"/>
-                                    <line x1="21" y1="21" x2="16.65" y2="16.65"/>
-                                </svg>
-                                <input type="text" id="library-search-input" class="library-search-input" placeholder="Cari berkas, modul, atau nama pengunggah...">
                             </div>
                         </div>
 
@@ -990,10 +1002,18 @@
             </button>
 
             <div class="guide-hero">
-                <svg class="guide-logo" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
-                    <rect width="32" height="32" rx="8" fill="var(--color-primary)"/>
-                    <path d="M8 16L14 10V14H20V18H14V22L8 16Z" fill="white"/>
-                    <path d="M24 16L18 22V18H16V14H18V10L24 16Z" fill="white" opacity="0.6"/>
+                <svg class="guide-logo" width="48" height="48" viewBox="0 0 34 34" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <defs>
+                        <linearGradient id="lanxGradGuide" x1="0%" y1="0%" x2="100%" y2="100%">
+                            <stop offset="0%" stop-color="#3b82f6"/>
+                            <stop offset="100%" stop-color="#6366f1"/>
+                        </linearGradient>
+                    </defs>
+                    <rect width="34" height="34" rx="9" fill="url(#lanxGradGuide)"/>
+                    <rect x="0.5" y="0.5" width="33" height="33" rx="8.5" stroke="rgba(255,255,255,0.2)"/>
+                    <path d="M9 17H25M9 17L14 12M9 17L14 22" stroke="white" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
+                    <path d="M25 17L20 12M25 17L20 22" stroke="white" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" opacity="0.6"/>
+                    <circle cx="17" cy="17" r="2" fill="white"/>
                 </svg>
                 <h2 class="guide-title">Selamat Datang di LANX</h2>
                 <p class="guide-tagline">Berbagi file dan teks super cepat via jaringan lokal (LAN/Wi-Fi). Tanpa internet, tanpa kuota, tanpa batas.</p>
@@ -1070,6 +1090,9 @@
             </div>
         </div>
     </div>
+
+    <!-- Toast Container -->
+    <div class="toast-container" id="toast-container"></div>
 
     <!-- Scripts -->
     <script src="/js/app.js"></script>
