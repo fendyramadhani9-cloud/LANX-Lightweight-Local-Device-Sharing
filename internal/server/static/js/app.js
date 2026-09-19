@@ -455,7 +455,8 @@ const LANX = {
             metaEl.textContent = `${sizeStr}${timeStr}${senderStr}`;
         }
         if (iconEl && typeof Transfer !== 'undefined') {
-            iconEl.innerHTML = Transfer.getFileIcon(item.name);
+            const isFolder = !!(item.is_folder || item.isFolder || (item.name && item.name.endsWith('.zip') && item.name.toLowerCase().includes('folder')));
+            iconEl.innerHTML = Transfer.getFileIcon(item.name, isFolder, 28);
         }
 
         // Hide preview button if not previewable
@@ -1446,7 +1447,7 @@ const LANX = {
 
         if (nameEl) nameEl.textContent = filename;
         if (metaEl) metaEl.textContent = `${this.formatSize(size || 0)} · Dari ${fromDevice || 'Perangkat Lain'}`;
-        if (iconEl && typeof Transfer !== 'undefined') iconEl.innerHTML = Transfer.getFileIcon(filename);
+        if (iconEl && typeof Transfer !== 'undefined') iconEl.innerHTML = Transfer.getFileIcon(filename, false, 24);
         if (dlBtn) {
             dlBtn.href = `/api/download/${downloadId}`;
             dlBtn.download = filename;

@@ -11,6 +11,7 @@ const Transfer = {
         this.setupFolderInput();
         this.setupCameraInput();
         this.setupPreviewClickListener();
+        this.setupRowSelectionListener();
         this.loadHistory();
     },
 
@@ -578,7 +579,7 @@ const Transfer = {
     },
 
     renderTransferItem(transfer, isActive = false) {
-        const icon = this.getFileIcon(transfer.filename);
+        const icon = this.getFileIcon(transfer.filename, transfer.isFolder || false);
         const sizeStr = LANX.formatSize(transfer.size || 0);
         const loadedStr = LANX.formatSize(transfer.loaded || 0);
 
@@ -705,6 +706,21 @@ const Transfer = {
                 if (id && filename) {
                     LANX.openMediaPreview(filename, id, size, from);
                 }
+            }
+        });
+    },
+
+    setupRowSelectionListener() {
+        document.addEventListener('click', (e) => {
+            const item = e.target.closest('.transfer-item, .file-list-row, .library-card');
+            if (item && !e.target.closest('button, a, input, select, textarea, .btn-row-action')) {
+                const wasSelected = item.classList.contains('selected');
+                document.querySelectorAll('.transfer-item.selected, .file-list-row.selected, .library-card.selected').forEach(el => el.classList.remove('selected'));
+                if (!wasSelected) {
+                    item.classList.add('selected');
+                }
+            } else if (!e.target.closest('.transfer-item, .file-list-row, .library-card')) {
+                document.querySelectorAll('.transfer-item.selected, .file-list-row.selected, .library-card.selected').forEach(el => el.classList.remove('selected'));
             }
         });
     },
@@ -883,33 +899,109 @@ const Transfer = {
         return previewable.includes(ext);
     },
 
-    getFileIcon(filename) {
-        if (!filename) return '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/><polyline points="13 2 13 9 20 9"/></svg>';
-        const ext = filename.split('.').pop().toLowerCase();
+    getFolderIcon(size = 22) {
+        return `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M2 6.5C2 5.12 3.12 4 4.5 4H8.7C9.36 4 10 4.26 10.47 4.73L12.27 6.5H19.5C20.88 6.5 22 7.62 22 9V17.5C22 18.88 20.88 20 19.5 20H4.5C3.12 20 2 18.88 2 17.5V6.5Z" fill="#2563EB"/>
+            <rect x="2" y="8" width="20" height="11.5" rx="2.5" fill="#3B82F6"/>
+            <rect x="2" y="8" width="20" height="1" fill="#93C5FD" fill-opacity="0.4"/>
+        </svg>`;
+    },
 
-        const imageExts = ['jpg', 'jpeg', 'png', 'gif', 'webp', 'svg', 'bmp', 'ico'];
-        const videoExts = ['mp4', 'mkv', 'avi', 'mov', 'wmv', 'webm'];
-        const audioExts = ['mp3', 'wav', 'ogg', 'flac', 'aac', 'm4a'];
-        const archiveExts = ['zip', 'rar', 'tar', 'gz', '7z', 'bz2'];
-        const docExts = ['pdf', 'doc', 'docx', 'txt', 'rtf', 'odt'];
-        const codeExts = ['js', 'ts', 'py', 'go', 'rs', 'java', 'c', 'cpp', 'h', 'css', 'html', 'json', 'xml', 'yaml', 'yml'];
+    getFileIcon(filename, isFolder = false, size = 22) {
+        if (isFolder || (filename && filename.endsWith('/'))) {
+            return this.getFolderIcon(size);
+        }
+        if (!filename) {
+            return `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="#64748B" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/><polyline points="13 2 13 9 20 9"/></svg>`;
+        }
 
-        const svgImg = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>';
-        const svgVideo = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2" ry="2"/></svg>';
-        const svgAudio = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg>';
-        const svgArchive = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 8v13H3V8"/><path d="M1 3h22v5H1z"/><path d="M10 12h4"/></svg>';
-        const svgDoc = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>';
-        const svgCode = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>';
-        const svgFile = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/><polyline points="13 2 13 9 20 9"/></svg>';
+        const ext = (filename.split('.').pop() || '').toLowerCase();
 
-        if (imageExts.includes(ext)) return svgImg;
-        if (videoExts.includes(ext)) return svgVideo;
-        if (audioExts.includes(ext)) return svgAudio;
-        if (archiveExts.includes(ext)) return svgArchive;
-        if (docExts.includes(ext)) return svgDoc;
-        if (codeExts.includes(ext)) return svgCode;
+        // Check if folder or directory archive
+        if (ext === 'folder' || filename.endsWith('.folder')) {
+            return this.getFolderIcon(size);
+        }
 
-        return svgFile;
+        // PDF (Muted red #DC2626 / #FEF2F2)
+        if (ext === 'pdf') {
+            return `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M14 2H6C4.9 2 4 2.9 4 4V20C4 21.1 4.9 22 6 22H18C19.1 22 20 21.1 20 20V8L14 2Z" fill="#FEF2F2" stroke="#DC2626" stroke-width="1.75" stroke-linejoin="round"/>
+                <path d="M14 2V8H20" stroke="#DC2626" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"/>
+                <rect x="6.5" y="11.5" width="11" height="6.5" rx="1.5" fill="#DC2626"/>
+                <text x="12" y="16.3" fill="#FFFFFF" font-family="-apple-system, BlinkMacSystemFont, 'Inter', sans-serif" font-size="5" font-weight="800" text-anchor="middle" letter-spacing="0.3">PDF</text>
+            </svg>`;
+        }
+
+        // Documents (Blue / slate #475569 / #2563EB)
+        const docExts = ['doc', 'docx', 'txt', 'rtf', 'odt', 'pages', 'md', 'epub', 'xlsx', 'xls', 'csv', 'ppt', 'pptx'];
+        if (docExts.includes(ext)) {
+            return `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M14 2H6C4.9 2 4 2.9 4 4V20C4 21.1 4.9 22 6 22H18C19.1 22 20 21.1 20 20V8L14 2Z" fill="#F8FAFC" stroke="#475569" stroke-width="1.75" stroke-linejoin="round"/>
+                <path d="M14 2V8H20" stroke="#475569" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"/>
+                <path d="M8 12H16" stroke="#2563EB" stroke-width="1.75" stroke-linecap="round"/>
+                <path d="M8 15H14" stroke="#64748B" stroke-width="1.75" stroke-linecap="round"/>
+                <path d="M8 18H12" stroke="#94A3B8" stroke-width="1.75" stroke-linecap="round"/>
+            </svg>`;
+        }
+
+        // Images (Muted violet #8B5CF6 / #F5F3FF)
+        const imgExts = ['jpg', 'jpeg', 'png', 'gif', 'webp', 'svg', 'bmp', 'ico', 'heic', 'tiff', 'psd', 'ai', 'raw'];
+        if (imgExts.includes(ext)) {
+            return `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <rect x="3" y="3" width="18" height="18" rx="3" fill="#F5F3FF" stroke="#8B5CF6" stroke-width="1.75"/>
+                <circle cx="8.5" cy="8.5" r="2" fill="#8B5CF6"/>
+                <path d="M20.5 16L15.5 11L7 19.5" stroke="#8B5CF6" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"/>
+                <path d="M14 18L17 15L20.5 18" stroke="#A78BFA" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>`;
+        }
+
+        // Archives (Muted amber #D97706 / #FFFBEB)
+        const archiveExts = ['zip', 'rar', 'tar', 'gz', '7z', 'bz2', 'xz', 'iso', 'dmg', 'tgz'];
+        if (archiveExts.includes(ext)) {
+            return `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M4 8V19C4 20.1 4.9 21 6 21H18C19.1 21 20 20.1 20 19V8" fill="#FFFBEB" stroke="#D97706" stroke-width="1.75" stroke-linejoin="round"/>
+                <rect x="3" y="3.5" width="18" height="4.5" rx="1.5" fill="#FEF3C7" stroke="#D97706" stroke-width="1.75"/>
+                <path d="M10 12H14" stroke="#D97706" stroke-width="1.75" stroke-linecap="round"/>
+                <path d="M12 10V14" stroke="#D97706" stroke-width="1.75" stroke-linecap="round"/>
+                <circle cx="12" cy="15" r="1.5" fill="#D97706"/>
+            </svg>`;
+        }
+
+        // Videos (Muted purple #9333EA / #FAF5FF)
+        const videoExts = ['mp4', 'mkv', 'avi', 'mov', 'wmv', 'webm', 'm4v', 'flv', '3gp'];
+        if (videoExts.includes(ext)) {
+            return `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <rect x="2.5" y="4.5" width="19" height="15" rx="3" fill="#FAF5FF" stroke="#9333EA" stroke-width="1.75"/>
+                <polygon points="10 9 16 12 10 15" fill="#9333EA"/>
+            </svg>`;
+        }
+
+        // Audios (Muted teal #0D9488 / #F0FDFA)
+        const audioExts = ['mp3', 'wav', 'ogg', 'flac', 'aac', 'm4a', 'wma', 'opus', 'aiff'];
+        if (audioExts.includes(ext)) {
+            return `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M9 18V5L19 3V16" stroke="#0D9488" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"/>
+                <circle cx="6" cy="18" r="3" fill="#CCFBF1" stroke="#0D9488" stroke-width="1.75"/>
+                <circle cx="16" cy="16" r="3" fill="#CCFBF1" stroke="#0D9488" stroke-width="1.75"/>
+            </svg>`;
+        }
+
+        // Code (Muted green #16A34A / #F0FDF4)
+        const codeExts = ['js', 'ts', 'jsx', 'tsx', 'py', 'go', 'rs', 'java', 'c', 'cpp', 'h', 'hpp', 'cs', 'css', 'html', 'json', 'xml', 'yaml', 'yml', 'sh', 'sql', 'php', 'rb', 'swift', 'kt'];
+        if (codeExts.includes(ext)) {
+            return `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <rect x="3" y="3" width="18" height="18" rx="3" fill="#F0FDF4" stroke="#16A34A" stroke-width="1.75"/>
+                <path d="M9 9L6 12L9 15" stroke="#16A34A" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"/>
+                <path d="M15 9L18 12L15 15" stroke="#16A34A" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"/>
+                <path d="M13 8L11 16" stroke="#22C55E" stroke-width="1.75" stroke-linecap="round"/>
+            </svg>`;
+        }
+
+        // Generic File (Muted slate #64748B / #F8FAFC)
+        return `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M14 2H6C4.9 2 4 2.9 4 4V20C4 21.1 4.9 22 6 22H18C19.1 22 20 21.1 20 20V8L14 2Z" fill="#F8FAFC" stroke="#64748B" stroke-width="1.75" stroke-linejoin="round"/>
+            <path d="M14 2V8H20" stroke="#64748B" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>`;
     },
 
     generateId() {

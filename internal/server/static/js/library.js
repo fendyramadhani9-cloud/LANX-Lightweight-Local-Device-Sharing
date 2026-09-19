@@ -522,7 +522,9 @@ const Library = {
     },
 
     renderCard(item) {
-        const icon = typeof Transfer !== 'undefined' ? Transfer.getFileIcon(item.name) : '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/><polyline points="13 2 13 9 20 9"/></svg>';
+        const isFolder = !!(item.is_folder || (item.name && item.name.endsWith('.zip') && item.name.toLowerCase().includes('folder')) || !item.name.includes('.'));
+        const iconSize = isFolder ? 44 : 32;
+        const icon = typeof Transfer !== 'undefined' ? Transfer.getFileIcon(item.name, isFolder, iconSize) : '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#64748B" stroke-width="1.75"><path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/><polyline points="13 2 13 9 20 9"/></svg>';
         const canPreview = typeof Transfer !== 'undefined' && Transfer.isPreviewable(item.name);
         const hasSelfToken = !!this.getDeleteToken(item.id);
         const isAdmin = !!LANX.isAdmin;
@@ -537,7 +539,7 @@ const Library = {
         }
 
         return `
-            <div class="library-card" data-id="${item.id}">
+            <div class="library-card ${isFolder ? 'is-folder-card' : ''}" data-id="${item.id}">
                 <div class="library-card-header">
                     <div class="library-card-icon">${icon}</div>
                     <div class="library-card-badges">
