@@ -13,6 +13,8 @@ const LANX = {
     clientName: null,
     platform: 'desktop',
     autoDownload: false,
+    isAdmin: false,
+    adminToken: localStorage.getItem('lanx_admin_token') || null,
 
     /** Initialize the application */
     async init() {
@@ -22,6 +24,9 @@ const LANX = {
         // Initialize client identity
         this.initClientIdentity();
 
+        // Initialize Admin authentication
+        await this.initAdmin();
+
         // Load settings & apply theme
         await this.loadSettings();
 
@@ -30,11 +35,14 @@ const LANX = {
 
         // Setup UI handlers
         this.setupTabs();
+        this.setupDualUX();
         this.setupSettings();
+        this.setupQuickTheme();
         this.setupPairing();
         this.setupProfileModal();
         this.setupModals();
         this.setupMediaPreviewModal();
+        this.setupGuideModal();
 
         // Sync profile with server database
         await this.syncDeviceProfile();
@@ -46,6 +54,7 @@ const LANX = {
         if (typeof Devices !== 'undefined') Devices.init();
         if (typeof Transfer !== 'undefined') Transfer.init();
         if (typeof Clipboard !== 'undefined') Clipboard.init();
+        if (typeof Library !== 'undefined') Library.init();
     },
 
     initClientIdentity() {
@@ -105,20 +114,420 @@ const LANX = {
 
     // ─── Tabs ────────────────────────────────────────────
 
+    // ─── Dual UX & Tab Management ──────────────────────
+    currentTab: 'files',
+    currentFileActionItem: null,
+
+    switchTab(tabId) {
+        if (!tabId || tabId === 'more') return;
+        this.currentTab = tabId;
+
+        // 1. Sync Desktop Sidebar
+        document.querySelectorAll('.sidebar-item').forEach(item => {
+            if (item.dataset.tab === tabId) {
+                item.classList.add('active');
+            } else {
+                item.classList.remove('active');
+            }
+        });
+
+        // 2. Sync Mobile Bottom Navigation
+        document.querySelectorAll('.nav-tab-btn').forEach(btn => {
+            if (btn.dataset.tab === tabId) {
+                btn.classList.add('active');
+            } else {
+                btn.classList.remove('active');
+            }
+        });
+
+        // 3. Switch Tab Panel
+        document.querySelectorAll('.tab-panel').forEach(panel => {
+            panel.classList.remove('active');
+        });
+        const targetPanel = document.getElementById(`panel-${tabId}`);
+        if (targetPanel) {
+            targetPanel.classList.add('active');
+        }
+
+        // 4. Update Workspace Header Title & Subtitle
+        const titles = {
+            files: { title: 'Files', subtitle: 'Kirim dan kelola berkas transfer lokal' },
+            recent: { title: 'Recent Transfers', subtitle: 'Riwayat pengiriman dan penerimaan berkas' },
+            library: { title: 'Pustaka Bersama (Shared Library)', subtitle: 'Pusat materi, modul praktikum, dan arsip lokal' },
+            text: { title: 'Text & Catatan', subtitle: 'Berbagi catatan, tautan, dan teks instan' },
+            devices: { title: 'Perangkat Sekitar (Devices)', subtitle: 'Radar perangkat yang terhubung dalam jaringan Wi-Fi / LAN' },
+        };
+        const titleEl = document.getElementById('workspace-title');
+        const subtitleEl = document.getElementById('workspace-subtitle');
+        if (titleEl && titles[tabId]) titleEl.textContent = titles[tabId].title;
+        if (subtitleEl && titles[tabId]) subtitleEl.textContent = titles[tabId].subtitle;
+
+        // 5. Trigger sub-module updates on tab switch
+        if (tabId === 'library' && typeof Library !== 'undefined') {
+            Library.loadItems();
+            Library.loadStats();
+            if (this.isAdmin) Library.loadPending();
+        } else if (tabId === 'recent' && typeof Transfer !== 'undefined') {
+            Transfer.loadHistory();
+        } else if (tabId === 'files' && typeof Transfer !== 'undefined') {
+            Transfer.loadHistory();
+        } else if (tabId === 'devices' && typeof Devices !== 'undefined') {
+            Devices.loadDevices();
+        }
+
+        // Reset search filter on tab switch
+        const searchInput = document.getElementById('global-search-input');
+        if (searchInput && searchInput.value) {
+            searchInput.value = '';
+            document.getElementById('btn-clear-search')?.style.setProperty('display', 'none');
+            this.applyGlobalSearch('');
+        }
+    },
+
     setupTabs() {
-        const tabs = document.querySelectorAll('.tab');
-        tabs.forEach(tab => {
-            tab.addEventListener('click', () => {
-                const target = tab.dataset.tab;
-                // Deactivate all
-                tabs.forEach(t => t.classList.remove('active'));
-                document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
-                // Activate target
-                tab.classList.add('active');
-                const panel = document.getElementById(`panel-${target}`);
-                if (panel) panel.classList.add('active');
+        // Desktop sidebar items
+        document.querySelectorAll('.sidebar-item').forEach(item => {
+            item.addEventListener('click', () => {
+                const target = item.dataset.tab;
+                if (target) this.switchTab(target);
             });
         });
+
+        // Mobile bottom navigation buttons
+        document.querySelectorAll('.nav-tab-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const target = btn.dataset.tab;
+                if (target === 'more') {
+                    this.openBottomSheet('more-sheet-overlay');
+                } else if (target) {
+                    this.switchTab(target);
+                }
+            });
+        });
+
+        // Quick button to view all recent from files panel
+        const btnViewRecent = document.getElementById('btn-view-all-recent');
+        if (btnViewRecent) {
+            btnViewRecent.addEventListener('click', () => this.switchTab('recent'));
+        }
+    },
+
+    setupDualUX() {
+        // ─── Mobile Floating Action Button (FAB) ───
+        const mobileFab = document.getElementById('mobile-fab');
+        if (mobileFab) {
+            mobileFab.addEventListener('click', () => {
+                this.openBottomSheet('upload-sheet-overlay');
+            });
+        }
+
+        // ─── Mobile Upload Bottom Sheet Actions ───
+        const btnPickFiles = document.getElementById('m-pick-files');
+        if (btnPickFiles) {
+            btnPickFiles.addEventListener('click', () => {
+                this.closeBottomSheet('upload-sheet-overlay');
+                document.getElementById('file-input')?.click();
+            });
+        }
+
+        const btnPickCamera = document.getElementById('m-pick-camera');
+        if (btnPickCamera) {
+            btnPickCamera.addEventListener('click', () => {
+                this.closeBottomSheet('upload-sheet-overlay');
+                document.getElementById('camera-input')?.click();
+            });
+        }
+
+        const btnPickFolder = document.getElementById('m-pick-folder');
+        if (btnPickFolder) {
+            btnPickFolder.addEventListener('click', () => {
+                this.closeBottomSheet('upload-sheet-overlay');
+                document.getElementById('folder-input')?.click();
+            });
+        }
+
+        const btnCancelUploadSheet = document.getElementById('btn-cancel-upload-sheet');
+        if (btnCancelUploadSheet) {
+            btnCancelUploadSheet.addEventListener('click', () => {
+                this.closeBottomSheet('upload-sheet-overlay');
+            });
+        }
+
+        // ─── Mobile More Menu Bottom Sheet Actions ───
+        const mMoreDevices = document.getElementById('m-more-devices');
+        if (mMoreDevices) {
+            mMoreDevices.addEventListener('click', () => {
+                this.closeBottomSheet('more-sheet-overlay');
+                this.switchTab('devices');
+            });
+        }
+
+        const mMoreProfile = document.getElementById('m-more-profile');
+        if (mMoreProfile) {
+            mMoreProfile.addEventListener('click', () => {
+                this.closeBottomSheet('more-sheet-overlay');
+                const btnProf = document.getElementById('btn-my-profile');
+                if (btnProf) btnProf.click();
+            });
+        }
+
+        const mMoreGuide = document.getElementById('m-more-guide');
+        if (mMoreGuide) {
+            mMoreGuide.addEventListener('click', () => {
+                this.closeBottomSheet('more-sheet-overlay');
+                this.openGuideModal();
+            });
+        }
+
+        const mMoreAdmin = document.getElementById('m-more-admin');
+        if (mMoreAdmin) {
+            mMoreAdmin.addEventListener('click', () => {
+                this.closeBottomSheet('more-sheet-overlay');
+                const btnAdmin = document.getElementById('btn-admin-mode');
+                if (btnAdmin) btnAdmin.click();
+            });
+        }
+
+        const mMoreSettings = document.getElementById('m-more-settings');
+        if (mMoreSettings) {
+            mMoreSettings.addEventListener('click', () => {
+                this.closeBottomSheet('more-sheet-overlay');
+                const btnSet = document.getElementById('btn-settings');
+                if (btnSet) btnSet.click();
+            });
+        }
+
+        const btnCancelMoreSheet = document.getElementById('btn-cancel-more-sheet');
+        if (btnCancelMoreSheet) {
+            btnCancelMoreSheet.addEventListener('click', () => {
+                this.closeBottomSheet('more-sheet-overlay');
+            });
+        }
+
+        // ─── Contextual Action Bottom Sheet (Triggered by ⋮) ───
+        const btnCancelActionSheet = document.getElementById('btn-cancel-action-sheet');
+        if (btnCancelActionSheet) {
+            btnCancelActionSheet.addEventListener('click', () => {
+                this.closeBottomSheet('action-sheet-overlay');
+            });
+        }
+
+        const sheetActDownload = document.getElementById('sheet-act-download');
+        if (sheetActDownload) {
+            sheetActDownload.addEventListener('click', () => {
+                if (this.currentFileActionItem && this.currentFileActionItem.downloadUrl) {
+                    const a = document.createElement('a');
+                    a.href = this.currentFileActionItem.downloadUrl;
+                    a.download = this.currentFileActionItem.name || 'file';
+                    document.body.appendChild(a);
+                    a.click();
+                    document.body.removeChild(a);
+                }
+                this.closeBottomSheet('action-sheet-overlay');
+            });
+        }
+
+        const sheetActPreview = document.getElementById('sheet-act-preview');
+        if (sheetActPreview) {
+            sheetActPreview.addEventListener('click', () => {
+                if (this.currentFileActionItem) {
+                    const item = this.currentFileActionItem;
+                    this.closeBottomSheet('action-sheet-overlay');
+                    this.openMediaPreview(item.name, item.id, item.size || 0, item.sender || '');
+                }
+            });
+        }
+
+        const sheetActCopyLink = document.getElementById('sheet-act-copy-link');
+        if (sheetActCopyLink) {
+            sheetActCopyLink.addEventListener('click', () => {
+                if (this.currentFileActionItem) {
+                    const fullUrl = this.currentFileActionItem.downloadUrl
+                        ? window.location.origin + this.currentFileActionItem.downloadUrl
+                        : window.location.origin;
+                    navigator.clipboard.writeText(fullUrl)
+                        .then(() => this.showToast('Tautan unduhan berhasil disalin', 'success'))
+                        .catch(() => this.showToast(fullUrl, 'info'));
+                }
+                this.closeBottomSheet('action-sheet-overlay');
+            });
+        }
+
+        const sheetActDelete = document.getElementById('sheet-act-delete');
+        if (sheetActDelete) {
+            sheetActDelete.addEventListener('click', () => {
+                if (this.currentFileActionItem) {
+                    const item = this.currentFileActionItem;
+                    this.closeBottomSheet('action-sheet-overlay');
+                    if (item.isLibrary && typeof Library !== 'undefined') {
+                        Library.deleteItem(item.id, item.name);
+                    } else {
+                        this.showToast(`Berkas ${item.name} dihapus dari daftar tampilan`, 'info');
+                    }
+                }
+            });
+        }
+
+        // Close bottom sheets on overlay backdrop click
+        document.querySelectorAll('.bottom-sheet-overlay').forEach(overlay => {
+            overlay.addEventListener('click', (e) => {
+                if (e.target === overlay) {
+                    overlay.style.display = 'none';
+                }
+            });
+        });
+
+        // Close on Escape key
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') {
+                document.querySelectorAll('.bottom-sheet-overlay').forEach(o => o.style.display = 'none');
+            }
+        });
+
+        // ─── Desktop Header & Workspace Actions ───
+        const btnDesktopUpload = document.getElementById('btn-desktop-upload');
+        if (btnDesktopUpload) {
+            btnDesktopUpload.addEventListener('click', () => {
+                document.getElementById('file-input')?.click();
+            });
+        }
+
+        // View mode toggle
+        const savedViewMode = localStorage.getItem('lanx_view_mode') || 'grid';
+        this.setViewMode(savedViewMode);
+
+        const btnViewGrid = document.getElementById('btn-view-grid');
+        const btnViewList = document.getElementById('btn-view-list');
+        if (btnViewGrid) {
+            btnViewGrid.addEventListener('click', () => this.setViewMode('grid'));
+        }
+        if (btnViewList) {
+            btnViewList.addEventListener('click', () => this.setViewMode('list'));
+        }
+
+        // Global Search
+        const searchInput = document.getElementById('global-search-input');
+        const btnClearSearch = document.getElementById('btn-clear-search');
+        if (searchInput) {
+            searchInput.addEventListener('input', (e) => {
+                const query = (e.target.value || '').trim();
+                if (btnClearSearch) {
+                    btnClearSearch.style.display = query ? 'flex' : 'none';
+                }
+                this.applyGlobalSearch(query.toLowerCase());
+            });
+        }
+        if (btnClearSearch) {
+            btnClearSearch.addEventListener('click', () => {
+                if (searchInput) searchInput.value = '';
+                btnClearSearch.style.display = 'none';
+                this.applyGlobalSearch('');
+            });
+        }
+    },
+
+    openBottomSheet(overlayId) {
+        const overlay = document.getElementById(overlayId);
+        if (overlay) {
+            overlay.style.display = 'flex';
+        }
+    },
+
+    closeBottomSheet(overlayId) {
+        const overlay = document.getElementById(overlayId);
+        if (overlay) {
+            overlay.style.display = 'none';
+        }
+    },
+
+    openFileActionSheet(item) {
+        this.currentFileActionItem = item;
+        const iconEl = document.getElementById('sheet-file-icon');
+        const nameEl = document.getElementById('sheet-file-name');
+        const metaEl = document.getElementById('sheet-file-meta');
+        const btnPreview = document.getElementById('sheet-act-preview');
+
+        if (nameEl) nameEl.textContent = item.name || 'Berkas';
+        if (metaEl) {
+            const sizeStr = this.formatSize(item.size || 0);
+            const timeStr = item.time ? ` · ${item.time}` : '';
+            const senderStr = item.sender ? ` · ${item.sender}` : '';
+            metaEl.textContent = `${sizeStr}${timeStr}${senderStr}`;
+        }
+        if (iconEl && typeof Transfer !== 'undefined') {
+            iconEl.innerHTML = Transfer.getFileIcon(item.name);
+        }
+
+        // Hide preview button if not previewable
+        if (btnPreview && typeof Transfer !== 'undefined') {
+            const canPreview = Transfer.isPreviewable(item.name);
+            btnPreview.style.display = canPreview ? 'flex' : 'none';
+        }
+
+        this.openBottomSheet('action-sheet-overlay');
+    },
+
+    setViewMode(mode) {
+        localStorage.setItem('lanx_view_mode', mode);
+        const btnGrid = document.getElementById('btn-view-grid');
+        const btnList = document.getElementById('btn-view-list');
+        const filesContainer = document.getElementById('files-container');
+        const historyContainer = document.getElementById('transfer-history');
+
+        if (mode === 'list') {
+            btnList?.classList.add('active');
+            btnGrid?.classList.remove('active');
+            filesContainer?.classList.remove('view-mode-grid');
+            filesContainer?.classList.add('view-mode-list');
+            historyContainer?.classList.remove('view-mode-grid');
+            historyContainer?.classList.add('view-mode-list');
+        } else {
+            btnGrid?.classList.add('active');
+            btnList?.classList.remove('active');
+            filesContainer?.classList.remove('view-mode-list');
+            filesContainer?.classList.add('view-mode-grid');
+            historyContainer?.classList.remove('view-mode-list');
+            historyContainer?.classList.add('view-mode-grid');
+        }
+    },
+
+    applyGlobalSearch(query) {
+        if (this.currentTab === 'library' && typeof Library !== 'undefined') {
+            Library.searchQuery = query;
+            Library.render();
+            return;
+        }
+
+        // Filter files & recent transfer items
+        const items = document.querySelectorAll('.transfer-item, .file-list-row');
+        items.forEach(item => {
+            const text = item.textContent.toLowerCase();
+            item.style.display = (!query || text.includes(query)) ? '' : 'none';
+        });
+
+        // Filter device cards if in devices tab
+        if (this.currentTab === 'devices') {
+            document.querySelectorAll('.device-card').forEach(card => {
+                const text = card.textContent.toLowerCase();
+                card.style.display = (!query || text.includes(query)) ? '' : 'none';
+            });
+        }
+    },
+
+    updateSidebarCounters() {
+        const devicesCountEl = document.getElementById('sidebar-devices-count');
+        if (devicesCountEl && typeof Devices !== 'undefined') {
+            const visible = Devices.getVisibleDevices ? Devices.getVisibleDevices() : [];
+            devicesCountEl.textContent = visible.length;
+        }
+
+        const storageBar = document.getElementById('sidebar-storage-bar');
+        const storagePct = document.getElementById('sidebar-storage-pct');
+        if (storageBar && storagePct && typeof Library !== 'undefined' && Library.storageStats) {
+            const pct = Math.min(100, Math.round(Library.storageStats.percentage || 0));
+            storageBar.style.width = `${pct}%`;
+            storagePct.textContent = `${pct}%`;
+        }
     },
 
     // ─── Settings ────────────────────────────────────────
@@ -145,7 +554,7 @@ const LANX = {
                 this.autoDownload = !this.autoDownload;
                 localStorage.setItem('lanx_auto_download', this.autoDownload ? 'true' : 'false');
                 this.updateAutoDownloadUI();
-                this.showToast(this.autoDownload ? '⚡ Auto-Download diaktifkan: berkas langsung tersimpan' : 'Auto-Download dinonaktifkan', 'info');
+                this.showToast(this.autoDownload ? 'Auto-Download diaktifkan: berkas langsung tersimpan' : 'Auto-Download dinonaktifkan', 'info');
             });
         }
 
@@ -175,6 +584,133 @@ const LANX = {
             checkSetting.checked = this.autoDownload;
         }
     },
+
+    // ─── Admin Mode ───────────────────────────────────────
+
+    async initAdmin() {
+        this.setupAdmin();
+        if (this.adminToken) {
+            try {
+                const res = await fetch('/api/admin/config', {
+                    headers: { 'X-Admin-Token': this.adminToken },
+                });
+                if (res.ok) {
+                    this.setAdminActive(true);
+                } else {
+                    this.setAdminActive(false);
+                    localStorage.removeItem('lanx_admin_token');
+                    this.adminToken = null;
+                }
+            } catch (e) {
+                // If offline, preserve state if token was already saved
+                this.setAdminActive(true);
+            }
+        }
+    },
+
+    setAdminActive(active) {
+        this.isAdmin = active;
+        const btnAdmin = document.getElementById('btn-admin-mode');
+        const adminGroup = document.getElementById('admin-settings-group');
+        if (btnAdmin) {
+            if (active) {
+                btnAdmin.classList.add('active');
+                btnAdmin.title = 'Mode Admin Aktif (Klik untuk Konfigurasi)';
+            } else {
+                btnAdmin.classList.remove('active');
+                btnAdmin.title = 'Mode Admin (Khusus Guru / Admin)';
+            }
+        }
+        if (adminGroup) {
+            adminGroup.style.display = active ? 'block' : 'none';
+        }
+    },
+
+    setupAdmin() {
+        const btnAdmin = document.getElementById('btn-admin-mode');
+        const modal = document.getElementById('admin-login-modal');
+        const btnClose = document.getElementById('btn-close-admin-login');
+        const btnCancel = document.getElementById('btn-cancel-admin-login');
+        const btnSubmit = document.getElementById('btn-submit-admin-login');
+        const pinInput = document.getElementById('admin-pin-input');
+
+        if (btnAdmin) {
+            btnAdmin.addEventListener('click', () => {
+                if (this.isAdmin) {
+                    this.openSettings();
+                    const adminGroup = document.getElementById('admin-settings-group');
+                    if (adminGroup) adminGroup.scrollIntoView({ behavior: 'smooth' });
+                } else {
+                    if (modal) {
+                        modal.style.display = 'flex';
+                        if (pinInput) {
+                            pinInput.value = '';
+                            pinInput.focus();
+                        }
+                    }
+                }
+            });
+        }
+
+        const closeAdminModal = () => {
+            if (modal) modal.style.display = 'none';
+        };
+
+        if (btnClose) btnClose.addEventListener('click', closeAdminModal);
+        if (btnCancel) btnCancel.addEventListener('click', closeAdminModal);
+        if (modal) {
+            modal.addEventListener('click', (e) => {
+                if (e.target === modal) closeAdminModal();
+            });
+        }
+
+        const doLogin = async () => {
+            const pin = pinInput ? pinInput.value.trim() : '';
+            if (!pin) {
+                this.showToast('Masukkan PIN Admin', 'error');
+                return;
+            }
+
+            try {
+                const res = await fetch('/api/admin/login', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ pin: pin }),
+                });
+
+                if (res.ok) {
+                    const data = await res.json();
+                    this.adminToken = data.token;
+                    localStorage.setItem('lanx_admin_token', data.token);
+                    this.setAdminActive(true);
+                    closeAdminModal();
+                    this.showToast('Berhasil masuk ke Mode Admin!', 'success');
+
+                    if (typeof Library !== 'undefined') {
+                        Library.loadPending();
+                        Library.render();
+                    }
+                    if (typeof Devices !== 'undefined') {
+                        Devices.render();
+                    }
+                } else {
+                    const err = await res.json();
+                    this.showToast(err.error || 'PIN Admin salah', 'error');
+                }
+            } catch (e) {
+                this.showToast('Gagal terhubung ke server', 'error');
+            }
+        };
+
+        if (btnSubmit) btnSubmit.addEventListener('click', doLogin);
+        if (pinInput) {
+            pinInput.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter') doLogin();
+            });
+        }
+    },
+
+    // ─── Settings ────────────────────────────────────────
 
     setupSettings() {
         const btnOpen = document.getElementById('btn-settings');
@@ -230,13 +766,22 @@ const LANX = {
     openSettings() {
         const modal = document.getElementById('settings-modal');
         const nameInput = document.getElementById('setting-device-name');
+        const serverNameInput = document.getElementById('setting-admin-server-name');
         const pairingInput = document.getElementById('setting-pairing');
         const autoDownloadInput = document.getElementById('setting-auto-download');
         const autoDeleteInput = document.getElementById('setting-auto-delete');
         const versionSpan = document.getElementById('settings-version');
+        const adminGroup = document.getElementById('admin-settings-group');
+
+        // Always show the user's current device name in the main device field
+        if (nameInput) {
+            nameInput.value = this.clientName || '';
+        }
+        if (serverNameInput && this.settings) {
+            serverNameInput.value = this.settings.device_name || '';
+        }
 
         if (this.settings) {
-            nameInput.value = this.settings.device_name || '';
             pairingInput.checked = this.settings.pairing_required;
             if (autoDeleteInput) {
                 autoDeleteInput.checked = this.settings.auto_delete_delivered !== false;
@@ -247,6 +792,29 @@ const LANX = {
         }
         if (this.deviceInfo) {
             versionSpan.textContent = this.deviceInfo.version || '1.0.0';
+        }
+
+        // If admin is active, load and populate admin config
+        if (this.isAdmin) {
+            if (adminGroup) adminGroup.style.display = 'block';
+            if (this.adminToken) {
+                fetch('/api/admin/config', {
+                    headers: { 'X-Admin-Token': this.adminToken }
+                }).then(r => r.json()).then(cfg => {
+                    if (cfg) {
+                        const quotaInput = document.getElementById('setting-admin-quota');
+                        const threshInput = document.getElementById('setting-admin-threshold');
+                        if (quotaInput && cfg.library_quota_bytes) {
+                            quotaInput.value = Math.round(cfg.library_quota_bytes / (1024 * 1024 * 1024));
+                        }
+                        if (threshInput && cfg.approval_threshold_bytes) {
+                            threshInput.value = Math.round(cfg.approval_threshold_bytes / (1024 * 1024));
+                        }
+                    }
+                }).catch(() => {});
+            }
+        } else {
+            if (adminGroup) adminGroup.style.display = 'none';
         }
 
         // Load current disk storage usage
@@ -261,37 +829,144 @@ const LANX = {
     },
 
     async saveSettings() {
-        const name = document.getElementById('setting-device-name').value.trim();
+        const myNewName = document.getElementById('setting-device-name')?.value.trim();
+        const serverName = document.getElementById('setting-admin-server-name')?.value.trim();
         const pairing = document.getElementById('setting-pairing').checked;
         const autoDelete = document.getElementById('setting-auto-delete')?.checked ?? true;
         const theme = document.querySelector('input[name="theme"]:checked')?.value || 'light';
 
+        // 1. If user changed their own device name, update local state, sync profile to server, and re-register WS
+        if (myNewName) {
+            this.clientName = myNewName;
+            localStorage.setItem('lanx_client_name', myNewName);
+            this.updateHeaderProfileBadge();
+
+            try {
+                await fetch('/api/device/profile', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        id: this.clientId,
+                        name: myNewName,
+                        platform: this.platform,
+                    }),
+                });
+                this.registerWithHub();
+                if (typeof Devices !== 'undefined') Devices.loadDevices();
+            } catch (e) {
+                console.error('Failed to sync profile from settings:', e);
+            }
+        }
+
+        // 2. Save server settings
         try {
+            const serverPayload = {
+                pairing_required: pairing,
+                theme: theme,
+                auto_delete_delivered: autoDelete,
+            };
+            if (serverName) {
+                serverPayload.device_name = serverName;
+            } else if (myNewName) {
+                serverPayload.device_name = myNewName;
+            }
+
             const res = await fetch('/api/settings', {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    device_name: name,
-                    pairing_required: pairing,
-                    theme: theme,
-                    auto_delete_delivered: autoDelete,
-                }),
+                body: JSON.stringify(serverPayload),
             });
             if (res.ok) {
                 this.settings = await res.json();
                 this.applyTheme(theme);
                 localStorage.setItem('lanx-theme', theme);
+
+                // If Admin, save Admin Configuration
+                if (this.isAdmin && this.adminToken) {
+                    const quotaGb = parseInt(document.getElementById('setting-admin-quota')?.value || '5', 10);
+                    const threshMb = parseInt(document.getElementById('setting-admin-threshold')?.value || '50', 10);
+                    const newPin = document.getElementById('setting-admin-new-pin')?.value.trim() || '';
+
+                    const adminBody = {
+                        library_quota_bytes: quotaGb * 1024 * 1024 * 1024,
+                        approval_threshold_bytes: threshMb * 1024 * 1024,
+                    };
+                    if (newPin) adminBody.new_pin = newPin;
+
+                    try {
+                        const aRes = await fetch('/api/admin/config', {
+                            method: 'PUT',
+                            headers: {
+                                'Content-Type': 'application/json',
+                                'X-Admin-Token': this.adminToken,
+                            },
+                            body: JSON.stringify(adminBody),
+                        });
+                        if (aRes.ok) {
+                            const newPinInput = document.getElementById('setting-admin-new-pin');
+                            if (newPinInput) newPinInput.value = '';
+                            if (typeof Library !== 'undefined') Library.loadStats();
+                        }
+                    } catch (e) {
+                        console.error('Failed to update admin config:', e);
+                    }
+                }
+
+                if (typeof Devices !== 'undefined') {
+                    Devices.loadDevices();
+                }
+
                 this.closeModal(document.getElementById('settings-modal'));
-                this.showToast('Settings saved', 'success');
+                this.showToast('Pengaturan berhasil disimpan', 'success');
             }
         } catch (e) {
-            this.showToast('Failed to save settings', 'error');
+            this.showToast('Gagal menyimpan pengaturan', 'error');
         }
     },
 
     applyTheme(theme) {
         document.documentElement.setAttribute('data-theme', theme);
         localStorage.setItem('lanx-theme', theme);
+
+        // Sync quick theme toggle button icons
+        const sunIcon = document.querySelector('.icon-theme-sun');
+        const moonIcon = document.querySelector('.icon-theme-moon');
+        if (sunIcon && moonIcon) {
+            if (theme === 'dark') {
+                sunIcon.style.display = 'block';
+                moonIcon.style.display = 'none';
+            } else {
+                sunIcon.style.display = 'none';
+                moonIcon.style.display = 'block';
+            }
+        }
+
+        // Sync settings modal radio options
+        const radioLight = document.getElementById('theme-light');
+        const radioDark = document.getElementById('theme-dark');
+        if (radioLight && radioDark) {
+            if (theme === 'dark') radioDark.checked = true;
+            else radioLight.checked = true;
+        }
+    },
+
+    setupQuickTheme() {
+        const btn = document.getElementById('btn-theme-quick');
+        if (!btn) return;
+        btn.addEventListener('click', () => {
+            const cur = document.documentElement.getAttribute('data-theme') || 'light';
+            const next = cur === 'dark' ? 'light' : 'dark';
+            this.applyTheme(next);
+
+            // Save to server
+            fetch('/api/settings', {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ theme: next })
+            }).catch(() => {});
+
+            this.showToast(`Beralih ke mode ${next === 'dark' ? 'Gelap' : 'Terang'}`, 'info');
+        });
     },
 
     // ─── Pairing ─────────────────────────────────────────
@@ -406,11 +1081,13 @@ const LANX = {
         const iconEl = document.getElementById('my-device-icon');
         if (nameEl) nameEl.textContent = this.clientName || 'Perangkat Saya';
         if (iconEl) {
-            let icon = '💻';
-            if (this.platform === 'mobile') icon = '📱';
-            else if (this.platform === 'tablet') icon = '📟';
-            else if (this.platform === 'desktop') icon = '💻';
-            iconEl.textContent = icon;
+            const svgDesktop = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="14" rx="2" ry="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>';
+            const svgPhone = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="2" width="14" height="20" rx="2" ry="2"/><line x1="12" y1="18" x2="12.01" y2="18"/></svg>';
+            const svgTablet = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="2" width="16" height="20" rx="2" ry="2"/><line x1="12" y1="18" x2="12.01" y2="18"/></svg>';
+            let icon = svgDesktop;
+            if (this.platform === 'mobile') icon = svgPhone;
+            else if (this.platform === 'tablet') icon = svgTablet;
+            iconEl.innerHTML = icon;
         }
     },
 
@@ -598,11 +1275,12 @@ const LANX = {
             case 'transfer_complete':
                 if (typeof Transfer !== 'undefined') Transfer.handleEvent(msg);
                 const myId = this.clientId || (this.deviceInfo && this.deviceInfo.id);
+                const isHostId = this.deviceInfo && this.deviceInfo.id;
                 // Do not show incoming download toast to the sender itself
-                if (msg.sender_id && msg.sender_id === myId) {
+                if (msg.sender_id && (msg.sender_id === myId || (isHostId && msg.sender_id === isHostId))) {
                     break;
                 }
-                const isTarget = !msg.target_device_id || msg.target_device_id === 'all' || msg.target_device_id === myId;
+                const isTarget = !msg.target_device_id || msg.target_device_id === 'all' || msg.target_device_id === myId || (isHostId && msg.target_device_id === isHostId);
                 if (isTarget && msg.download_url) {
                     let autoDownloaded = false;
                     if (this.autoDownload) {
@@ -630,20 +1308,22 @@ const LANX = {
 
             case 'text_received':
                 const curId = this.clientId || (this.deviceInfo && this.deviceInfo.id);
-                if (msg.from_id && msg.from_id === curId) {
+                const hostClipId = this.deviceInfo && this.deviceInfo.id;
+                if (msg.from_id && (msg.from_id === curId || (hostClipId && msg.from_id === hostClipId))) {
                     break;
                 }
-                if (!msg.target_device_id || msg.target_device_id === 'all' || msg.target_device_id === curId) {
+                if (!msg.target_device_id || msg.target_device_id === 'all' || msg.target_device_id === curId || (hostClipId && msg.target_device_id === hostClipId)) {
                     if (typeof Clipboard !== 'undefined') Clipboard.handleTextReceived(msg);
                 }
                 break;
 
             case 'clipboard_received':
                 const curClipId = this.clientId || (this.deviceInfo && this.deviceInfo.id);
-                if (msg.from_id && msg.from_id === curClipId) {
+                const hostClipId2 = this.deviceInfo && this.deviceInfo.id;
+                if (msg.from_id && (msg.from_id === curClipId || (hostClipId2 && msg.from_id === hostClipId2))) {
                     break;
                 }
-                if (!msg.target_device_id || msg.target_device_id === 'all' || msg.target_device_id === curClipId) {
+                if (!msg.target_device_id || msg.target_device_id === 'all' || msg.target_device_id === curClipId || (hostClipId2 && msg.target_device_id === hostClipId2)) {
                     if (typeof Clipboard !== 'undefined') Clipboard.handleClipboardReceived(msg);
                 }
                 break;
@@ -654,6 +1334,12 @@ const LANX = {
 
             case 'incoming_file':
                 this.showIncomingFile(msg);
+                break;
+
+            case 'library_updated':
+            case 'library_approval_request':
+            case 'library_approval_resolved':
+                if (typeof Library !== 'undefined') Library.handleEvent(msg);
                 break;
 
             default:
@@ -669,16 +1355,16 @@ const LANX = {
         const fromDevice = msg.from_device ? `Dari <strong>${this.escapeHtml(msg.from_device)}</strong>` : 'Berkas Baru';
         const canPreview = typeof Transfer !== 'undefined' && Transfer.isPreviewable(msg.filename);
 
-        let badgeText = isBroadcast ? '📢 Siaran ke Semua' : '🎯 Berkas Diterima';
+        let badgeText = isBroadcast ? 'Siaran ke Semua' : 'Berkas Diterima';
         let badgeBg = 'rgba(26,115,232,0.15)';
         let badgeColor = 'var(--color-primary)';
 
         if (msg.is_offline_queue) {
-            badgeText = autoDownloaded ? '⚡ Masuk dari Kotak Masuk (Terunduh)' : '📬 Masuk dari Kotak Masuk Offline';
+            badgeText = autoDownloaded ? 'Masuk dari Kotak Masuk (Terunduh)' : 'Masuk dari Kotak Masuk Offline';
             badgeBg = 'rgba(245,158,11,0.18)';
             badgeColor = '#d97706';
         } else if (autoDownloaded) {
-            badgeText = '⚡ Terunduh Otomatis';
+            badgeText = 'Terunduh Otomatis';
             badgeBg = 'rgba(16,185,129,0.15)';
             badgeColor = '#10b981';
         }
@@ -689,6 +1375,11 @@ const LANX = {
                     ${badgeText}
                 </span>
                 <div>${fromDevice}: <strong>${this.escapeHtml(msg.filename)}</strong> (${this.formatSize(msg.size)})</div>
+                ${msg.description ? `
+                        <div style="margin-top: 4px; font-size: 0.75rem; color: var(--color-primary); background: rgba(26,115,232,0.1); padding: 3px 8px; border-radius: 4px; border-left: 2px solid var(--color-primary);">
+                         "${this.escapeHtml(msg.description)}"
+                    </div>
+                ` : ''}
                 ${msg.is_offline_queue ? '<div style="font-size: 0.75rem; color: var(--color-text-tertiary); margin-top: 2px;">(Dikirim saat perangkat ini sedang offline)</div>' : ''}
             </div>
             <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
@@ -699,11 +1390,11 @@ const LANX = {
                         data-size="${msg.size || 0}"
                         data-from="${this.escapeHtml(msg.from_device || '')}"
                         style="padding: 4px 10px; border: 1px solid var(--color-border); font-weight: 500;">
-                        👁️ Pratinjau
+                        Pratinjau
                     </button>
                 ` : ''}
                 <a href="${msg.download_url}" download="${this.escapeHtml(msg.filename)}" class="btn btn-sm btn-primary" style="display: inline-block; padding: 4px 12px; text-decoration: none; color: #fff; border-radius: 4px; font-weight: 500;">
-                    ${autoDownloaded ? '📥 Unduh Ulang' : '📥 Unduh Berkas'}
+                    ${autoDownloaded ? 'Unduh Ulang' : 'Unduh Berkas'}
                 </a>
             </div>
         `;
@@ -755,7 +1446,7 @@ const LANX = {
 
         if (nameEl) nameEl.textContent = filename;
         if (metaEl) metaEl.textContent = `${this.formatSize(size || 0)} · Dari ${fromDevice || 'Perangkat Lain'}`;
-        if (iconEl && typeof Transfer !== 'undefined') iconEl.textContent = Transfer.getFileIcon(filename);
+        if (iconEl && typeof Transfer !== 'undefined') iconEl.innerHTML = Transfer.getFileIcon(filename);
         if (dlBtn) {
             dlBtn.href = `/api/download/${downloadId}`;
             dlBtn.download = filename;
@@ -778,7 +1469,9 @@ const LANX = {
         } else if (audExts.includes(ext)) {
             stage.innerHTML = `
                 <div class="preview-audio-container">
-                    <div class="preview-audio-disc">🎵</div>
+                    <div class="preview-audio-disc">
+                        <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg>
+                    </div>
                     <div style="font-weight: 600; color: var(--color-text); margin-bottom: 4px;">${this.escapeHtml(filename)}</div>
                     <audio src="${previewUrl}" controls autoplay></audio>
                 </div>
@@ -804,7 +1497,9 @@ const LANX = {
         } else {
             stage.innerHTML = `
                 <div class="preview-empty-stage">
-                    <div style="font-size: 3rem; margin-bottom: 12px;">📄</div>
+                    <div style="display: flex; justify-content: center; margin-bottom: 12px; color: var(--color-text-secondary);">
+                        <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/><polyline points="13 2 13 9 20 9"/></svg>
+                    </div>
                     <p style="font-weight: 500; color: var(--color-text); margin-bottom: 4px;">Pratinjau langsung tidak didukung untuk format ini</p>
                     <p style="font-size: var(--font-size-xs); color: var(--color-text-tertiary); margin-bottom: 16px;">Anda dapat langsung mengunduh berkas ke komputer.</p>
                     <a href="/api/download/${downloadId}" class="btn btn-primary" download="${this.escapeHtml(filename)}">Unduh Berkas Sekarang</a>
@@ -900,6 +1595,42 @@ const LANX = {
         div.textContent = str;
         return div.innerHTML;
     },
+};
+
+// ─── Guide Modal ─────────────────────────────────────
+LANX.setupGuideModal = function() {
+    const modal = document.getElementById('welcome-guide-modal');
+    const btnClose = document.getElementById('btn-close-guide');
+    const btnDismiss = document.getElementById('btn-dismiss-guide');
+    const btnOpen = document.getElementById('btn-open-guide');
+
+    if (!modal) return;
+
+    const closeGuide = () => {
+        modal.style.display = 'none';
+        sessionStorage.setItem('lanx_guide_dismissed', 'true');
+        localStorage.setItem('lanx_seen_guide', 'true');
+    };
+
+    if (btnClose) btnClose.addEventListener('click', closeGuide);
+    if (btnDismiss) btnDismiss.addEventListener('click', closeGuide);
+
+    // Click overlay to close
+    modal.addEventListener('click', (e) => {
+        if (e.target === modal) closeGuide();
+    });
+
+    // Re-open via header button
+    if (btnOpen) {
+        btnOpen.addEventListener('click', () => {
+            modal.style.display = 'flex';
+        });
+    }
+
+    // Show on visit if not dismissed in current session
+    if (!sessionStorage.getItem('lanx_guide_dismissed')) {
+        modal.style.display = 'flex';
+    }
 };
 
 // Initialize on DOM ready

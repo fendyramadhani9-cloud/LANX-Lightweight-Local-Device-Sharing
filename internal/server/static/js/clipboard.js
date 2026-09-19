@@ -27,7 +27,15 @@ const Clipboard = {
             }
         };
 
-        input.addEventListener('input', updateBtn);
+        input.addEventListener('input', () => {
+            updateBtn();
+            // Update character counter
+            const counter = document.getElementById('text-char-counter');
+            if (counter) {
+                const len = input.value.length;
+                counter.textContent = len + ' karakter';
+            }
+        });
         if (select) {
             select.addEventListener('change', updateBtn);
         }
@@ -41,6 +49,59 @@ const Clipboard = {
                 }
             }
         });
+
+        // Setup Quick Snippet Chips
+        const chipPaste = document.getElementById('btn-chip-paste');
+        const chipWifi = document.getElementById('btn-chip-wifi');
+        const chipLink = document.getElementById('btn-chip-link');
+        const chipClear = document.getElementById('btn-chip-clear');
+
+        if (chipPaste) {
+            chipPaste.addEventListener('click', async () => {
+                try {
+                    if (navigator.clipboard && navigator.clipboard.readText) {
+                        const clipText = await navigator.clipboard.readText();
+                        if (clipText) {
+                            input.value = (input.value ? input.value + '\n' : '') + clipText;
+                            input.dispatchEvent(new Event('input'));
+                            input.focus();
+                            LANX.showToast('Teks ditempel dari papan klip', 'info');
+                        }
+                    } else {
+                        LANX.showToast('Tekan Ctrl+V untuk tempel manual', 'info');
+                    }
+                } catch (err) {
+                    LANX.showToast('Izin papan klip ditolak, silakan paste manual', 'info');
+                }
+            });
+        }
+
+        if (chipWifi) {
+            chipWifi.addEventListener('click', () => {
+                input.value = 'Wi-Fi Network:\nSSID: \nPassword: ';
+                input.dispatchEvent(new Event('input'));
+                input.focus();
+                input.setSelectionRange(22, 22);
+            });
+        }
+
+        if (chipLink) {
+            chipLink.addEventListener('click', () => {
+                if (!input.value.startsWith('http')) {
+                    input.value = 'https://' + input.value;
+                }
+                input.dispatchEvent(new Event('input'));
+                input.focus();
+            });
+        }
+
+        if (chipClear) {
+            chipClear.addEventListener('click', () => {
+                input.value = '';
+                input.dispatchEvent(new Event('input'));
+                input.focus();
+            });
+        }
 
         sendBtn.addEventListener('click', () => this.sendText());
     },
@@ -92,12 +153,15 @@ const Clipboard = {
                 const data = await res.json().catch(() => ({}));
                 let toastMsg = deviceId === 'all' ? 'Teks berhasil disiarkan ke Semua Perangkat!' : 'Teks berhasil terkirim!';
                 if (data.offline_queued) {
-                    toastMsg = '📬 Teks tersimpan di server! Akan otomatis masuk saat perangkat online.';
+                    toastMsg = 'Teks tersimpan di server! Akan otomatis masuk saat perangkat online.';
                 }
                 LANX.showToast(toastMsg, 'success');
                 input.value = '';
                 const sendBtn = document.getElementById('btn-send-text');
                 if (sendBtn) sendBtn.disabled = true;
+                // Reset character counter
+                const counter = document.getElementById('text-char-counter');
+                if (counter) counter.textContent = '0 karakter';
             } else {
                 const data = await res.json().catch(() => ({}));
                 LANX.showToast(data.error || 'Gagal mengirim teks', 'error');
@@ -116,7 +180,7 @@ const Clipboard = {
         const suffix = isOffline ? ' (Kotak Masuk)' : (isBroadcast ? ' (Siaran)' : '');
         this.addReceivedItem(senderName + suffix, msg.text);
         if (isOffline) {
-            LANX.showToast(`📬 Pesan dari ${senderName} (dikirim saat Anda offline)`, 'info');
+            LANX.showToast(`Pesan dari ${senderName} (dikirim saat Anda offline)`, 'info');
         } else {
             LANX.showToast(`Pesan baru dari ${senderName}${isBroadcast ? ' [Semua Perangkat]' : ''}`, 'info');
         }
@@ -166,7 +230,8 @@ const Clipboard = {
                 <div class="received-item-content">${LANX.escapeHtml(item.content)}</div>
                 <div class="received-item-actions">
                     <button class="btn btn-ghost btn-sm btn-copy-text" data-index="${idx}">
-                        📋 Salin Teks
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+                        Salin Teks
                     </button>
                 </div>
             </div>
@@ -179,6 +244,13 @@ const Clipboard = {
                 const item = this.receivedTexts[idx];
                 if (item) {
                     this.copyToClipboard(item.content);
+                    const origHtml = btn.innerHTML;
+                    btn.innerHTML = '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg> Tersalin!';
+                    btn.classList.add('copied');
+                    setTimeout(() => {
+                        btn.innerHTML = origHtml;
+                        btn.classList.remove('copied');
+                    }, 1600);
                 }
             });
         });

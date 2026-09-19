@@ -233,7 +233,7 @@ const Transfer = {
             <div class="device-picker">
                 <h3>Kirim ${isFolder ? 'Folder' : 'Berkas'} ke:</h3>
                 <div class="device-picker-broadcast-btn" id="btn-picker-broadcast">
-                    <div class="device-card-icon" style="background: linear-gradient(135deg, #1a73e8, #4285f4); color: #fff;">📢</div>
+                    <div class="device-card-icon" style="background: linear-gradient(135deg, #1a73e8, #4285f4); color: #fff;"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4.93 19.07A10 10 0 0 1 12 2a10 10 0 0 1 7.07 17.07"/><path d="M7.76 16.24A6 6 0 0 1 12 6a6 6 0 0 1 4.24 10.24"/><circle cx="12" cy="12" r="2"/></svg></div>
                     <div>
                         <div class="device-picker-broadcast-title">Kirim ke Semua Perangkat (All)</div>
                         <div class="device-picker-broadcast-desc">Siarkan ${isFolder ? 'folder' : 'berkas'} ini ke seluruh perangkat yang terhubung</div>
@@ -256,7 +256,7 @@ const Transfer = {
                     </div>
                 ` : ''}
                 ${offlineDevices.length > 0 ? `
-                    <div style="font-size: var(--font-size-xs); font-weight: 600; color: var(--color-text-secondary); margin: 12px 0 6px 0; text-transform: uppercase;">📬 Kotak Masuk Offline (${offlineDevices.length}):</div>
+                    <div style="font-size: var(--font-size-xs); font-weight: 600; color: var(--color-text-secondary); margin: 12px 0 6px 0; text-transform: uppercase;">Kotak Masuk Offline (${offlineDevices.length}):</div>
                     <div class="device-picker-list">
                         ${offlineDevices.map(d => `
                             <div class="device-card offline-device" data-device-id="${d.id}">
@@ -265,7 +265,7 @@ const Transfer = {
                                     <div class="device-card-name">${LANX.escapeHtml(d.name)}</div>
                                     <div class="device-card-status">
                                         <span class="status-dot offline"></span> Offline
-                                        <span class="mailbox-pill">📬 Kotak Masuk</span>
+                                        <span class="mailbox-pill">Kotak Masuk</span>
                                     </div>
                                 </div>
                             </div>
@@ -323,7 +323,10 @@ const Transfer = {
         }
         const transferId = this.generateId();
         const isAll = !targetDevice.id || targetDevice.id === 'all';
-        const targetDisplayName = isAll ? '📢 Semua Perangkat' : (targetDevice.name || 'Perangkat');
+        const targetDisplayName = isAll ? 'Semua Perangkat' : (targetDevice.name || 'Perangkat');
+
+        const descInput = document.getElementById('transfer-desc-input');
+        const description = descInput ? descInput.value.trim() : '';
 
         this.activeTransfers[transferId] = {
             id: transferId,
@@ -334,6 +337,7 @@ const Transfer = {
             status: 'preparing',
             direction: 'sent',
             device: targetDisplayName,
+            description: description,
             timestamp: Date.now(),
             startTime: Date.now(),
             lastTime: Date.now(),
@@ -350,6 +354,7 @@ const Transfer = {
         formData.append('transfer_id', transferId);
         formData.append('sender_id', LANX.clientId || '');
         formData.append('sender_name', LANX.clientName || 'Perangkat Ini');
+        formData.append('description', description);
 
         try {
             const xhr = new XMLHttpRequest();
@@ -397,7 +402,7 @@ const Transfer = {
                     }
 
                     if (resData && resData.offline_queued) {
-                        LANX.showToast(`📦 Berkas tersimpan di server! Akan otomatis masuk saat ${targetDisplayName} online.`, 'info');
+                        LANX.showToast(`Berkas tersimpan di server! Akan otomatis masuk saat ${targetDisplayName} online.`, 'info');
                     } else {
                         LANX.showToast(`${file.name} berhasil terkirim`, 'success');
                     }
@@ -437,7 +442,7 @@ const Transfer = {
         }
         const transferId = this.generateId();
         const isAll = !targetDevice.id || targetDevice.id === 'all';
-        const targetDisplayName = isAll ? '📢 Semua Perangkat' : (targetDevice.name || 'Perangkat');
+        const targetDisplayName = isAll ? 'Semua Perangkat' : (targetDevice.name || 'Perangkat');
         const totalSize = files.reduce((acc, f) => acc + (f.size || 0), 0);
         const displayZipName = folderName.endsWith('.zip') ? folderName : `${folderName}.zip`;
 
@@ -457,9 +462,13 @@ const Transfer = {
             speed: 0,
             eta: null,
             isFolder: true,
+            description: document.getElementById('transfer-desc-input')?.value.trim() || '',
         };
 
         this.renderActiveTransfers();
+
+        const descInput = document.getElementById('transfer-desc-input');
+        const description = descInput ? descInput.value.trim() : '';
 
         const formData = new FormData();
         formData.append('folder_name', folderName);
@@ -467,6 +476,7 @@ const Transfer = {
         formData.append('transfer_id', transferId);
         formData.append('sender_id', LANX.clientId || '');
         formData.append('sender_name', LANX.clientName || 'Perangkat Ini');
+        formData.append('description', description);
 
         files.forEach(file => {
             formData.append('files', file);
@@ -519,7 +529,7 @@ const Transfer = {
                     }
 
                     if (resData && resData.offline_queued) {
-                        LANX.showToast(`📦 Folder "${folderName}" tersimpan di server! Akan otomatis masuk saat ${targetDisplayName} online.`, 'info');
+                        LANX.showToast(`Folder "${folderName}" tersimpan di server! Akan otomatis masuk saat ${targetDisplayName} online.`, 'info');
                     } else {
                         LANX.showToast(`Folder "${folderName}" berhasil dikemas & dikirim!`, 'success');
                     }
@@ -617,8 +627,8 @@ const Transfer = {
         if (isActive && transfer.status === 'transferring' && transfer.speed > 0) {
             speedHtml = `
                 <div class="transfer-speed-row">
-                    <span class="speed-badge">⚡ ${this.formatSpeed(transfer.speed)}</span>
-                    ${transfer.eta !== null ? `<span class="eta-badge">⏱️ ${this.formatETA(transfer.eta)}</span>` : ''}
+                    <span class="speed-badge"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg> ${this.formatSpeed(transfer.speed)}</span>
+                    ${transfer.eta !== null ? `<span class="eta-badge">${this.formatETA(transfer.eta)}</span>` : ''}
                 </div>
             `;
         }
@@ -628,10 +638,13 @@ const Transfer = {
         const downloadId = transfer.download_id;
 
         return `
-            <div class="transfer-item">
+            <div class="transfer-item" data-id="${downloadId || transfer.id || ''}">
                 <div class="transfer-icon">${icon}</div>
                 <div class="transfer-info">
-                    <div class="transfer-name">${LANX.escapeHtml(transfer.filename)}</div>
+                    <div class="transfer-name" title="${LANX.escapeHtml(transfer.filename)}">${LANX.escapeHtml(transfer.filename)}</div>
+                    ${transfer.description ? `
+                        <div class="transfer-note-bubble" title="Catatan Berkas">${LANX.escapeHtml(transfer.description)}</div>
+                    ` : ''}
                     <div class="transfer-meta">
                         <span class="transfer-direction">${direction} ${transfer.device || ''}</span>
                         <span>${metaStr}</span>
@@ -641,15 +654,16 @@ const Transfer = {
                 </div>
                 ${progressHtml}
                 ${statusHtml}
-                ${!isActive && transfer.direction === 'received' && downloadId ? `
-                    <div class="transfer-status" style="gap: 6px;">
+                ${!isActive && downloadId ? `
+                    <!-- Desktop Actions -->
+                    <div class="transfer-actions-desktop">
                         ${canPreview ? `
                             <button type="button" class="preview-btn btn-trigger-preview"
                                 data-id="${downloadId}"
                                 data-filename="${LANX.escapeHtml(transfer.filename)}"
                                 data-size="${transfer.size || 0}"
                                 data-from="${LANX.escapeHtml(transfer.device || '')}">
-                                👁️ Pratinjau
+                                Pratinjau
                             </button>
                         ` : ''}
                         <a href="/api/download/${downloadId}" class="download-btn" download>
@@ -661,6 +675,18 @@ const Transfer = {
                             Unduh
                         </a>
                     </div>
+                    <!-- Mobile Contextual 3-Dots Action Button -->
+                    <button type="button" class="btn-row-action" title="Opsi Berkas"
+                        data-filename="${LANX.escapeHtml(transfer.filename)}"
+                        data-download-id="${downloadId}"
+                        data-size="${transfer.size || 0}"
+                        data-sender="${LANX.escapeHtml(transfer.device || '')}">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                            <circle cx="12" cy="5" r="1"/>
+                            <circle cx="12" cy="12" r="1"/>
+                            <circle cx="12" cy="19" r="1"/>
+                        </svg>
+                    </button>
                 ` : ''}
             </div>
         `;
@@ -683,6 +709,34 @@ const Transfer = {
         });
     },
 
+    // ─── Attach Mobile Row Action Listeners (⋮) ─────────
+
+    attachRowActionListeners() {
+        document.querySelectorAll('.btn-row-action').forEach(btn => {
+            if (btn.dataset.bound) return;
+            btn.dataset.bound = 'true';
+            btn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                const filename = btn.dataset.filename;
+                const downloadId = btn.dataset.downloadId;
+                const size = parseInt(btn.dataset.size || '0', 10);
+                const sender = btn.dataset.sender;
+                const downloadUrl = downloadId ? `/api/download/${downloadId}` : '';
+
+                if (typeof LANX !== 'undefined' && LANX.openFileActionSheet) {
+                    LANX.openFileActionSheet({
+                        id: downloadId,
+                        name: filename,
+                        size: size,
+                        sender: sender,
+                        downloadUrl: downloadUrl,
+                        isLibrary: false,
+                    });
+                }
+            });
+        });
+    },
+
     // ─── History ─────────────────────────────────────────
 
     async loadHistory() {
@@ -698,18 +752,33 @@ const Transfer = {
     },
 
     renderHistory(items) {
-        const container = document.getElementById('transfer-history');
-        const empty = document.getElementById('history-empty');
+        const historyContainer = document.getElementById('transfer-history');
+        const historyEmpty = document.getElementById('history-empty');
+        const filesContainer = document.getElementById('files-container');
+        const filesEmpty = document.getElementById('files-empty');
 
         if (!items || items.length === 0) {
-            container.innerHTML = '';
-            container.appendChild(empty);
-            empty.style.display = 'block';
+            if (historyContainer && historyEmpty) {
+                historyContainer.innerHTML = '';
+                historyContainer.appendChild(historyEmpty);
+                historyEmpty.style.display = 'block';
+            }
+            if (filesContainer && filesEmpty) {
+                filesContainer.innerHTML = '';
+                filesContainer.appendChild(filesEmpty);
+                filesEmpty.style.display = 'block';
+            }
             return;
         }
 
-        empty.style.display = 'none';
-        container.innerHTML = items.map(t => this.renderTransferItem(t, false)).join('');
+        if (historyEmpty) historyEmpty.style.display = 'none';
+        if (filesEmpty) filesEmpty.style.display = 'none';
+
+        const html = items.map(t => this.renderTransferItem(t, false)).join('');
+        if (historyContainer) historyContainer.innerHTML = html;
+        if (filesContainer) filesContainer.innerHTML = html;
+
+        this.attachRowActionListeners();
     },
 
     // ─── WebSocket Events ────────────────────────────────
@@ -736,6 +805,7 @@ const Transfer = {
                         status: 'transferring',
                         direction: 'received',
                         device: msg.from_device,
+                        description: msg.description || '',
                         timestamp: Date.now(),
                     };
                     this.renderActiveTransfers();
@@ -814,7 +884,7 @@ const Transfer = {
     },
 
     getFileIcon(filename) {
-        if (!filename) return '📄';
+        if (!filename) return '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/><polyline points="13 2 13 9 20 9"/></svg>';
         const ext = filename.split('.').pop().toLowerCase();
 
         const imageExts = ['jpg', 'jpeg', 'png', 'gif', 'webp', 'svg', 'bmp', 'ico'];
@@ -824,14 +894,22 @@ const Transfer = {
         const docExts = ['pdf', 'doc', 'docx', 'txt', 'rtf', 'odt'];
         const codeExts = ['js', 'ts', 'py', 'go', 'rs', 'java', 'c', 'cpp', 'h', 'css', 'html', 'json', 'xml', 'yaml', 'yml'];
 
-        if (imageExts.includes(ext)) return '🖼️';
-        if (videoExts.includes(ext)) return '🎬';
-        if (audioExts.includes(ext)) return '🎵';
-        if (archiveExts.includes(ext)) return '📦';
-        if (docExts.includes(ext)) return '📄';
-        if (codeExts.includes(ext)) return '💻';
+        const svgImg = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>';
+        const svgVideo = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2" ry="2"/></svg>';
+        const svgAudio = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg>';
+        const svgArchive = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 8v13H3V8"/><path d="M1 3h22v5H1z"/><path d="M10 12h4"/></svg>';
+        const svgDoc = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>';
+        const svgCode = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>';
+        const svgFile = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/><polyline points="13 2 13 9 20 9"/></svg>';
 
-        return '📄';
+        if (imageExts.includes(ext)) return svgImg;
+        if (videoExts.includes(ext)) return svgVideo;
+        if (audioExts.includes(ext)) return svgAudio;
+        if (archiveExts.includes(ext)) return svgArchive;
+        if (docExts.includes(ext)) return svgDoc;
+        if (codeExts.includes(ext)) return svgCode;
+
+        return svgFile;
     },
 
     generateId() {

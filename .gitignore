@@ -23,3 +23,5 @@ coverage.out
 
 # Data directory (don't commit user data)
 .lanx/
+lanx-data/
+

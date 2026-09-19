@@ -2,251 +2,670 @@
 <html lang="en" data-theme="light">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <meta name="description" content="LANX — Share files, text, and clipboard across devices on your local network. No internet required.">
     <title>LANX — Local Device Sharing</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="/css/style.css">
 </head>
 <body>
-    <!-- Header -->
-    <header class="header" id="header">
-        <div class="header-inner">
-            <div class="header-brand">
-                <svg class="header-logo" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <!-- App Shell Layout -->
+    <div class="app-layout" id="app-layout">
+        <!-- Desktop Persistent Sidebar (Only visible on screens >= 769px) -->
+        <aside class="desktop-sidebar" id="desktop-sidebar">
+            <div class="sidebar-brand">
+                <svg class="sidebar-logo" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
                     <rect width="32" height="32" rx="8" fill="var(--color-primary)"/>
                     <path d="M8 16L14 10V14H20V18H14V22L8 16Z" fill="white"/>
                     <path d="M24 16L18 22V18H16V14H18V10L24 16Z" fill="white" opacity="0.6"/>
                 </svg>
-                <h1 class="header-title">LANX</h1>
+                <div class="sidebar-brand-text">
+                    <span class="sidebar-title">LANX</span>
+                    <span class="sidebar-badge">LAB</span>
+                </div>
             </div>
-            <div class="header-actions">
-                <button class="my-device-badge" id="btn-my-profile" title="Ubah Nama & Profil Perangkat Ini" aria-label="Profil Perangkat">
-                    <span class="my-device-icon" id="my-device-icon">💻</span>
-                    <span class="my-device-name" id="my-device-name">Perangkat Saya</span>
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="my-device-edit-icon">
-                        <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
-                        <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
+
+            <!-- Sidebar Navigation Items -->
+            <nav class="sidebar-nav" id="sidebar-nav">
+                <button type="button" class="sidebar-item active" data-tab="files" id="side-tab-files" title="Kirim & Kelola Berkas">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/>
+                        <polyline points="13 2 13 9 20 9"/>
                     </svg>
+                    <span>Files</span>
                 </button>
-                <button class="btn-icon" id="btn-pair" title="Pair device" aria-label="Pair device">
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                        <rect x="2" y="2" width="8" height="8" rx="1"/>
-                        <rect x="14" y="2" width="8" height="8" rx="1"/>
-                        <rect x="2" y="14" width="8" height="8" rx="1"/>
-                        <rect x="14" y="14" width="8" height="8" rx="1"/>
+                <button type="button" class="sidebar-item" data-tab="recent" id="side-tab-recent" title="Riwayat Transfer">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <circle cx="12" cy="12" r="10"/>
+                        <polyline points="12 6 12 12 16 14"/>
                     </svg>
+                    <span>Recent</span>
                 </button>
-                <button class="btn-icon" id="btn-settings" title="Settings" aria-label="Settings">
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                        <circle cx="12" cy="12" r="3"/>
-                        <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+                <button type="button" class="sidebar-item" data-tab="library" id="side-tab-library" title="Pustaka Bersama (Shared Library)">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/>
+                        <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/>
                     </svg>
+                    <span>Shared</span>
                 </button>
-            </div>
-        </div>
-    </header>
-
-    <!-- Main Content -->
-    <main class="main" id="main">
-        <!-- Hero Section -->
-        <section class="hero">
-            <h2 class="hero-title">Share files locally</h2>
-            <p class="hero-subtitle">Send files directly to devices on your LAN. No internet required.</p>
-        </section>
-
-        <!-- Tab Navigation -->
-        <nav class="tabs" id="tabs">
-            <button class="tab active" data-tab="files" id="tab-files">
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                    <path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/>
-                    <polyline points="13 2 13 9 20 9"/>
-                </svg>
-                Berkas (Files)
-            </button>
-            <button class="tab" data-tab="text" id="tab-text">
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                    <line x1="17" y1="10" x2="3" y2="10"/>
-                    <line x1="21" y1="6" x2="3" y2="6"/>
-                    <line x1="21" y1="14" x2="3" y2="14"/>
-                    <line x1="17" y1="18" x2="3" y2="18"/>
-                </svg>
-                Teks & Catatan
-            </button>
-        </nav>
-
-        <!-- Mode Pengiriman: 1 per 1 Device vs Semua Device (All) -->
-        <div class="mode-control-container" id="mode-control-container">
-            <div class="mode-control-left">
-                <span class="mode-control-label">Mode Pengiriman:</span>
-                <div class="mode-switch" id="mode-switch">
-                    <button type="button" class="mode-btn" data-mode="single" id="btn-mode-single" title="Kirim ke satu perangkat tertentu">
-                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                            <circle cx="12" cy="12" r="10"/>
-                            <circle cx="12" cy="12" r="3"/>
-                        </svg>
-                        <span>1 per 1 Device</span>
-                    </button>
-                    <button type="button" class="mode-btn active" data-mode="all" id="btn-mode-all" title="Kirim serentak ke semua perangkat di jaringan">
-                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                            <path d="M4.93 19.07A10 10 0 0 1 12 2a10 10 0 0 1 7.07 17.07"/>
-                            <path d="M7.76 16.24A6 6 0 0 1 12 6a6 6 0 0 1 4.24 10.24"/>
-                            <circle cx="12" cy="12" r="2"/>
-                        </svg>
-                        <span>Semua Device (All)</span>
-                        <span class="mode-badge-live">Siaran</span>
-                    </button>
-                </div>
-            </div>
-            <div class="mode-target-info" id="mode-target-info">
-                <div class="mode-target-row">
-                    <span class="target-indicator-dot"></span>
-                    <span id="mode-target-desc">Target: <strong>📢 Semua Perangkat (All Devices)</strong></span>
-                </div>
-                <button type="button" class="quick-auto-download-btn" id="btn-quick-auto-download" title="Klik untuk beralih Terima Berkas Otomatis">
-                    <span class="quick-auto-icon">⚡</span>
-                    <span>Auto-Download: <strong id="quick-auto-status">OFF</strong></span>
+                <button type="button" class="sidebar-item" data-tab="text" id="side-tab-text" title="Kirim Catatan & Teks">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <line x1="17" y1="10" x2="3" y2="10"/>
+                        <line x1="21" y1="6" x2="3" y2="6"/>
+                        <line x1="21" y1="14" x2="3" y2="14"/>
+                        <line x1="17" y1="18" x2="3" y2="18"/>
+                    </svg>
+                    <span>Text</span>
                 </button>
-            </div>
-        </div>
-
-        <!-- Tab Panels -->
-        <div class="tab-panels">
-            <!-- Files Panel -->
-            <div class="tab-panel active" id="panel-files">
-                <!-- Target Device Selector Bar for Files -->
-                <div class="file-target-bar" id="file-target-bar">
-                    <div class="device-select-wrapper file-select-wrapper">
-                        <label class="device-select-label" for="file-device-select">🎯 Kirim Berkas ke:</label>
-                        <select class="device-select" id="file-device-select" title="Pilih perangkat tujuan untuk pengiriman berkas">
-                            <option value="all">📢 Semua Perangkat (All Devices)</option>
-                        </select>
-                    </div>
-                </div>
-
-                <!-- Drop Zone -->
-                <div class="drop-zone" id="drop-zone">
-                    <div class="drop-zone-content">
-                        <svg class="drop-zone-icon" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
-                            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
-                            <polyline points="17 8 12 3 7 8"/>
-                            <line x1="12" y1="3" x2="12" y2="15"/>
-                        </svg>
-                        <p class="drop-zone-text">Tarik berkas atau folder ke sini</p>
-                        <p class="drop-zone-hint">atau gunakan pilihan cepat di bawah:</p>
-                        
-                        <div class="drop-zone-actions" id="drop-zone-actions">
-                            <button type="button" class="drop-action-btn" id="btn-pick-file">
-                                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                    <path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/>
-                                    <polyline points="13 2 13 9 20 9"/>
-                                </svg>
-                                <span>Pilih Berkas</span>
-                            </button>
-                            <button type="button" class="drop-action-btn" id="btn-pick-folder" title="Kirim seluruh folder (otomatis dikemas menjadi .zip)">
-                                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                    <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/>
-                                </svg>
-                                <span>📁 Kirim Folder</span>
-                            </button>
-                            <button type="button" class="drop-action-btn camera-btn" id="btn-quick-camera" title="Buka kamera ponsel dan langsung kirim jepretan foto">
-                                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                    <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/>
-                                    <circle cx="12" cy="13" r="4"/>
-                                </svg>
-                                <span>📸 Foto Langsung</span>
-                            </button>
-                        </div>
-
-                        <div class="drop-zone-target-badge" id="drop-zone-target-badge">
-                            Target: <strong id="drop-target-name">📢 Semua Perangkat (All Devices)</strong>
-                        </div>
-                    </div>
-                    <input type="file" id="file-input" multiple hidden>
-                    <input type="file" id="folder-input" webkitdirectory directory multiple hidden>
-                    <input type="file" id="camera-input" accept="image/*" capture="environment" hidden>
-                </div>
-
-                <!-- Active Transfers -->
-                <div class="section" id="active-transfers-section" style="display: none;">
-                    <h3 class="section-title">Sedang Mentransfer</h3>
-                    <div class="transfer-list" id="active-transfers"></div>
-                </div>
-            </div>
-
-            <!-- Text Panel -->
-            <div class="tab-panel" id="panel-text">
-                <div class="text-share">
-                    <textarea class="text-input" id="text-input" placeholder="Ketik atau tempel teks, catatan, atau tautan di sini... (Tekan Ctrl+Enter untuk kirim)" rows="5"></textarea>
-                    <div class="text-actions">
-                        <div class="device-select-wrapper">
-                            <label class="device-select-label">Kirim ke:</label>
-                            <select class="device-select" id="text-device-select">
-                                <option value="">Pilih perangkat tujuan</option>
-                            </select>
-                        </div>
-                        <button class="btn btn-primary" id="btn-send-text" disabled>
-                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                <line x1="22" y1="2" x2="11" y2="13"/>
-                                <polygon points="22 2 15 22 11 13 2 9 22 2"/>
-                            </svg>
-                            Kirim Teks
-                        </button>
-                    </div>
-                </div>
-
-                <!-- Received Texts -->
-                <div class="section" id="received-texts-section" style="display: none;">
-                    <h3 class="section-title">Pesan & Teks Diterima</h3>
-                    <div class="received-list" id="received-texts"></div>
-                </div>
-            </div>
-        </div>
-
-        <!-- Nearby Devices -->
-        <section class="section" id="devices-section">
-            <h3 class="section-title">Nearby devices</h3>
-            <div class="devices-grid" id="devices-grid">
-                <div class="empty-state" id="devices-empty">
-                    <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" opacity="0.4">
+                <button type="button" class="sidebar-item" data-tab="devices" id="side-tab-devices" title="Perangkat Sekitar di Jaringan">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                         <rect x="2" y="3" width="20" height="14" rx="2" ry="2"/>
                         <line x1="8" y1="21" x2="16" y2="21"/>
                         <line x1="12" y1="17" x2="12" y2="21"/>
                     </svg>
-                    <p class="empty-state-text">Belum ada perangkat lain terhubung</p>
-                    <p class="empty-state-hint">Buka alamat ini di HP / perangkat lain dalam Wi-Fi yang sama:</p>
-                    <div class="empty-state-connect-box">
-                        <code id="display-lan-url">http://...</code>
-                        <button class="btn btn-sm btn-ghost" id="btn-copy-url" type="button">Salin</button>
+                    <span>Devices</span>
+                    <span class="sidebar-badge-count" id="sidebar-devices-count">0</span>
+                </button>
+            </nav>
+
+            <!-- Sidebar Footer (Storage indicator & Host info) -->
+            <div class="sidebar-footer">
+                <div class="sidebar-storage-card">
+                    <div class="sidebar-storage-labels">
+                        <span>Pustaka Server</span>
+                        <span id="sidebar-storage-pct">0%</span>
                     </div>
-                    <div style="margin-top: 12px;">
-                        <button class="btn btn-primary btn-sm" id="btn-empty-pair" type="button">
-                            Hubungkan via QR Code
+                    <div class="sidebar-storage-progress">
+                        <div class="sidebar-storage-bar" id="sidebar-storage-bar" style="width: 0%;"></div>
+                    </div>
+                </div>
+                <div class="sidebar-host-pill" id="sidebar-host-pill" title="Jaringan LAN Aktif">
+                    <span class="sidebar-beacon"></span>
+                    <span class="sidebar-host-name" id="sidebar-host-name">LANX Active</span>
+                </div>
+            </div>
+        </aside>
+
+        <!-- Main Workspace Area -->
+        <div class="app-main-wrap">
+            <!-- App Header (Desktop Global Search & Mobile Top Bar) -->
+            <header class="app-header" id="app-header">
+                <!-- Mobile Brand (Visible only on <= 768px) -->
+                <div class="mobile-brand-wrap">
+                    <svg class="header-logo" width="28" height="28" viewBox="0 0 32 32" fill="none">
+                        <rect width="32" height="32" rx="8" fill="var(--color-primary)"/>
+                        <path d="M8 16L14 10V14H20V18H14V22L8 16Z" fill="white"/>
+                        <path d="M24 16L18 22V18H16V14H18V10L24 16Z" fill="white" opacity="0.6"/>
+                    </svg>
+                    <span class="mobile-brand-title">LANX</span>
+                    <span class="mobile-online-dot" title="Online"></span>
+                </div>
+
+                <!-- Global Search Bar -->
+                <div class="global-search-bar" id="global-search-bar">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <circle cx="11" cy="11" r="8"/>
+                        <line x1="21" y1="21" x2="16.65" y2="16.65"/>
+                    </svg>
+                    <input type="text" id="global-search-input" placeholder="Cari berkas, catatan, atau perangkat..." autocomplete="off">
+                    <button type="button" class="btn-clear-search" id="btn-clear-search" style="display: none;" title="Hapus pencarian">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                    </button>
+                </div>
+
+                <!-- Header Actions -->
+                <div class="header-actions">
+                    <button class="my-device-badge" id="btn-my-profile" title="Ubah Nama & Profil Perangkat Ini" aria-label="Profil Perangkat">
+                        <span class="my-device-icon" id="my-device-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="14" rx="2" ry="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg></span>
+                        <span class="my-device-name" id="my-device-name">Perangkat Saya</span>
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="my-device-edit-icon">
+                            <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
+                            <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
+                        </svg>
+                    </button>
+                    <button class="btn-icon admin-status-btn" id="btn-admin-mode" title="Mode Admin" aria-label="Mode Admin">
+                        <svg id="admin-crown-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 4l3 12h14l3-12-6 7-4-9-4 9-6-7z"/><path d="M3 20h18"/></svg>
+                    </button>
+                    <button class="btn-icon" id="btn-open-guide" title="Panduan LANX" aria-label="Panduan">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+                    </button>
+                    <button class="btn-icon" id="btn-pair" title="Hubungkan via QR" aria-label="Hubungkan">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="2" width="8" height="8" rx="1"/><rect x="14" y="2" width="8" height="8" rx="1"/><rect x="2" y="14" width="8" height="8" rx="1"/><rect x="14" y="14" width="8" height="8" rx="1"/></svg>
+                    </button>
+                    <button class="btn-icon" id="btn-theme-quick" title="Ganti Tema (Gelap / Terang)" aria-label="Ganti Tema">
+                        <svg class="icon-theme-sun" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="display: none;"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>
+                        <svg class="icon-theme-moon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+                    </button>
+                    <button class="btn-icon" id="btn-settings" title="Pengaturan" aria-label="Pengaturan">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+                    </button>
+                </div>
+            </header>
+
+            <!-- Workspace Action Bar (Desktop Breadcrumbs & Controls) -->
+            <div class="workspace-header" id="workspace-header">
+                <div class="workspace-title-group">
+                    <h2 class="workspace-title" id="workspace-title">Files</h2>
+                    <span class="workspace-subtitle" id="workspace-subtitle">Kirim dan kelola berkas transfer lokal</span>
+                </div>
+
+                <div class="workspace-actions">
+                    <div class="view-mode-toggle" id="view-mode-toggle">
+                        <button type="button" class="btn-icon btn-sm active" id="btn-view-grid" title="Tampilan Grid">
+                            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+                        </button>
+                        <button type="button" class="btn-icon btn-sm" id="btn-view-list" title="Tampilan List / Baris">
+                            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>
+                        </button>
+                    </div>
+
+                    <button type="button" class="btn btn-primary btn-sm desktop-upload-btn" id="btn-desktop-upload">
+                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                        <span>+ Upload File</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Main Content Panels -->
+            <main class="main" id="main">
+                <!-- Mode Control Ribbon (Integrated for Desktop & Mobile) -->
+                <div class="mode-control-container" id="mode-control-container">
+                    <div class="mode-control-left">
+                        <span class="mode-control-label">Mode Pengiriman:</span>
+                        <div class="mode-switch" id="mode-switch">
+                            <button type="button" class="mode-btn" data-mode="single" id="btn-mode-single" title="Kirim ke satu perangkat tertentu">
+                                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                    <circle cx="12" cy="12" r="10"/>
+                                    <circle cx="12" cy="12" r="3"/>
+                                </svg>
+                                <span>1 per 1 Device</span>
+                            </button>
+                            <button type="button" class="mode-btn active" data-mode="all" id="btn-mode-all" title="Kirim serentak ke semua perangkat di jaringan">
+                                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                    <path d="M4.93 19.07A10 10 0 0 1 12 2a10 10 0 0 1 7.07 17.07"/>
+                                    <path d="M7.76 16.24A6 6 0 0 1 12 6a6 6 0 0 1 4.24 10.24"/>
+                                    <circle cx="12" cy="12" r="2"/>
+                                </svg>
+                                <span>Semua Device (All)</span>
+                                <span class="mode-badge-live">Siaran</span>
+                            </button>
+                        </div>
+                    </div>
+                    <div class="mode-target-info" id="mode-target-info">
+                        <div class="mode-target-row">
+                            <span class="target-indicator-dot"></span>
+                            <span id="mode-target-desc">Target: <strong>Semua Perangkat (All Devices)</strong></span>
+                        </div>
+                        <button type="button" class="quick-auto-download-btn" id="btn-quick-auto-download" title="Klik untuk beralih Terima Berkas Otomatis">
+                            <span class="quick-auto-icon"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg></span>
+                            <span>Auto-Download: <strong id="quick-auto-status">OFF</strong></span>
                         </button>
                     </div>
                 </div>
-            </div>
-        </section>
 
-        <!-- Recent Transfers -->
-        <section class="section" id="history-section">
-            <h3 class="section-title">Recent transfers</h3>
-            <div class="transfer-history" id="transfer-history">
-                <div class="empty-state" id="history-empty">
-                    <p class="empty-state-text">No transfers yet</p>
+                <!-- Tab Panels -->
+                <div class="tab-panels">
+                    <!-- ============================================
+                         1. FILES PANEL
+                         ============================================ -->
+                    <div class="tab-panel active" id="panel-files">
+                        <!-- Desktop Drag & Drop Zone -->
+                        <div class="drop-zone desktop-drop-zone" id="drop-zone">
+                            <div class="drop-zone-content">
+                                <svg class="drop-zone-icon" width="44" height="44" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                                    <polyline points="17 8 12 3 7 8"/>
+                                    <line x1="12" y1="3" x2="12" y2="15"/>
+                                </svg>
+                                <p class="drop-zone-text">Tarik & lepas berkas ke sini</p>
+                                <p class="drop-zone-hint">atau gunakan pilihan cepat di bawah:</p>
+                                
+                                <div class="drop-zone-actions" id="drop-zone-actions">
+                                    <button type="button" class="drop-action-btn" id="btn-pick-file">
+                                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                            <path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/>
+                                            <polyline points="13 2 13 9 20 9"/>
+                                        </svg>
+                                        <span>Pilih Berkas</span>
+                                    </button>
+                                    <button type="button" class="drop-action-btn" id="btn-pick-folder" title="Kirim seluruh folder (otomatis dikemas menjadi .zip)">
+                                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                            <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/>
+                                        </svg>
+                                        <span>Kirim Folder</span>
+                                    </button>
+                                    <button type="button" class="drop-action-btn camera-btn" id="btn-quick-camera" title="Buka kamera dan langsung kirim foto">
+                                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                            <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/>
+                                            <circle cx="12" cy="13" r="4"/>
+                                        </svg>
+                                        <span>Foto Langsung</span>
+                                    </button>
+                                </div>
+
+                                <div class="drop-zone-desc-box" onclick="event.stopPropagation()">
+                                    <input type="text" id="transfer-desc-input" class="transfer-desc-input" placeholder="Tambahkan pesan / catatan berkas (opsional, misal: ini tugas kemaren)..." maxlength="255">
+                                </div>
+
+                                <div class="drop-zone-target-badge" id="drop-zone-target-badge">
+                                    Target: <strong id="drop-target-name">Semua Perangkat (All Devices)</strong>
+                                </div>
+                            </div>
+                            <input type="file" id="file-input" multiple hidden>
+                            <input type="file" id="folder-input" webkitdirectory directory multiple hidden>
+                            <input type="file" id="camera-input" accept="image/*" capture="environment" hidden>
+                        </div>
+
+                        <!-- Active Transfers Section -->
+                        <div class="section" id="active-transfers-section" style="display: none;">
+                            <h3 class="section-title">Sedang Mentransfer</h3>
+                            <div class="transfer-list" id="active-transfers"></div>
+                        </div>
+
+                        <!-- Files Display Section (Adapts: Desktop Grid/List or Mobile Vertical Rows) -->
+                        <div class="section" id="files-quick-section">
+                            <div class="section-header-wrap">
+                                <h3 class="section-title">Berkas Terkini (Files)</h3>
+                                <button type="button" class="btn-link" id="btn-view-all-recent">Lihat Riwayat &rarr;</button>
+                            </div>
+                            <div class="files-container" id="files-container">
+                                <div class="empty-state" id="files-empty">
+                                    <p class="empty-state-text">Belum ada berkas terkirim</p>
+                                    <p class="empty-state-hint">Gunakan tombol upload atau tarik berkas untuk mulai berbagi.</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- ============================================
+                         2. RECENT TRANSFERS PANEL (Dedicated View)
+                         ============================================ -->
+                    <div class="tab-panel" id="panel-recent">
+                        <div class="section" id="history-section">
+                            <div class="section-header-wrap">
+                                <h3 class="section-title">Riwayat Lengkap Transfer</h3>
+                                <span class="section-subtitle">Daftar semua transfer berkas yang masuk dan keluar</span>
+                            </div>
+                            <div class="transfer-history" id="transfer-history">
+                                <div class="empty-state" id="history-empty">
+                                    <p class="empty-state-text">Belum ada riwayat transfer</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- ============================================
+                         3. SHARED LIBRARY PANEL
+                         ============================================ -->
+                    <div class="tab-panel" id="panel-library">
+                        <div class="library-header-bar">
+                            <div class="library-quota-wrap">
+                                <div class="library-quota-labels">
+                                    <span class="library-quota-title">
+                                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/></svg>
+                                        Kapasitas Pustaka
+                                    </span>
+                                    <span class="library-quota-info" id="library-quota-info">Memuat kapasitas...</span>
+                                </div>
+                                <div class="library-quota-progress">
+                                    <div class="library-quota-fill" id="library-quota-fill" style="width: 0%;"></div>
+                                </div>
+                            </div>
+                            <div class="library-search-wrap">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                    <circle cx="11" cy="11" r="8"/>
+                                    <line x1="21" y1="21" x2="16.65" y2="16.65"/>
+                                </svg>
+                                <input type="text" id="library-search-input" class="library-search-input" placeholder="Cari berkas, modul, atau nama pengunggah...">
+                            </div>
+                        </div>
+
+                        <!-- Admin Pending Approval Banner -->
+                        <div class="library-pending-banner" id="library-pending-banner" style="display: none;">
+                            <div class="library-pending-banner-header">
+                                <span class="pending-alert-icon">
+                                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                        <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
+                                        <line x1="12" y1="9" x2="12" y2="13"/>
+                                        <line x1="12" y1="17" x2="12.01" y2="17"/>
+                                    </svg>
+                                </span>
+                                <div>
+                                    <strong>Antrean Persetujuan Berkas Besar (<span id="library-pending-count">0</span>)</strong>
+                                    <p style="font-size: var(--font-size-xs); color: var(--color-text-secondary); margin-top: 2px;">
+                                        Berkas besar memerlukan persetujuan Admin agar kapasitas penyimpanan Proxmox tetap terkendali.
+                                    </p>
+                                </div>
+                            </div>
+                            <div class="library-pending-list" id="library-pending-list"></div>
+                        </div>
+
+                        <!-- Library Drop Zone -->
+                        <div class="drop-zone library-drop-zone desktop-drop-zone" id="library-drop-zone">
+                            <div class="drop-zone-content">
+                                <svg class="drop-zone-icon" width="44" height="44" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                                    <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/>
+                                    <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/>
+                                </svg>
+                                <p class="drop-zone-text">Tarik berkas atau tugas ke sini untuk disimpan di Pustaka</p>
+                                <p class="drop-zone-hint">File tersimpan di server dan bebas diunduh berkali-kali tanpa terhapus.</p>
+
+                                <div class="library-upload-controls" onclick="event.stopPropagation()">
+                                    <div class="library-expiry-group">
+                                        <label class="library-control-label">
+                                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                                            Masa Aktif Berkas:
+                                        </label>
+                                        <div class="expiry-pills" id="library-expiry-pills">
+                                            <button type="button" class="expiry-pill" data-days="3">3 Hari</button>
+                                            <button type="button" class="expiry-pill active" data-days="7">7 Hari</button>
+                                            <button type="button" class="expiry-pill" data-days="14">14 Hari</button>
+                                            <button type="button" class="expiry-pill" data-days="30">30 Hari</button>
+                                            <button type="button" class="expiry-pill" data-days="90">90 Hari</button>
+                                            <button type="button" class="expiry-pill" data-days="365">1 Tahun</button>
+                                            <button type="button" class="expiry-pill" data-type="calendar" id="btn-expiry-calendar">Pilih Tanggal</button>
+                                        </div>
+                                        <div class="library-calendar-wrap" id="library-calendar-wrap" style="display: none;">
+                                            <input type="date" id="library-custom-date" class="library-date-input">
+                                            <span class="library-calendar-hint">Maksimal hingga 1 tahun ke depan</span>
+                                        </div>
+                                    </div>
+
+                                    <div class="library-desc-box">
+                                        <input type="text" id="library-description-input" class="library-desc-input" placeholder="Tambahkan catatan / deskripsi tugas (opsional, misal: modul praktikum bab 3)..." maxlength="255">
+                                    </div>
+                                </div>
+
+                                <div class="drop-zone-actions" id="library-drop-actions">
+                                    <button type="button" class="drop-action-btn" id="btn-library-pick-file">
+                                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                            <path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/>
+                                            <polyline points="13 2 13 9 20 9"/>
+                                        </svg>
+                                        <span>Pilih Berkas Pustaka</span>
+                                    </button>
+                                </div>
+                            </div>
+                            <input type="file" id="library-file-input" multiple hidden>
+                        </div>
+
+                        <!-- Library Items Section -->
+                        <div class="section" id="library-items-section">
+                            <h3 class="section-title">Berkas Pustaka Tersimpan</h3>
+                            <div class="library-grid" id="library-grid">
+                                <div class="empty-state" id="library-empty">
+                                    <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" opacity="0.4">
+                                        <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/>
+                                        <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/>
+                                    </svg>
+                                    <p class="empty-state-text">Belum ada berkas di Pustaka</p>
+                                    <p class="empty-state-hint">Tarik berkas atau gunakan tombol di atas untuk menitip materi/tugas.</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- ============================================
+                         4. TEXT & CATATAN PANEL
+                         ============================================ -->
+                    <div class="tab-panel" id="panel-text">
+                        <div class="text-share">
+                            <div class="text-compose-card">
+                                <div class="text-compose-header">
+                                    <div class="text-compose-title">
+                                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                            <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+                                        </svg>
+                                        <span>Kirim Catatan & Teks</span>
+                                    </div>
+                                    <div class="text-quick-chips">
+                                        <button type="button" class="text-chip" id="btn-chip-paste" title="Tempel dari Clipboard">
+                                            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+                                            <span>Tempel</span>
+                                        </button>
+                                        <button type="button" class="text-chip" id="btn-chip-wifi" title="Kirim Format Password Wi-Fi">
+                                            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.55a11 11 0 0 1 14.08 0"/><path d="M1.42 9a16 16 0 0 1 21.16 0"/><path d="M8.53 16.11a6 6 0 0 1 6.95 0"/><line x1="12" y1="20" x2="12.01" y2="20"/></svg>
+                                            <span>Wi-Fi</span>
+                                        </button>
+                                        <button type="button" class="text-chip" id="btn-chip-link" title="Kirim Tautan / Link">
+                                            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
+                                            <span>Tautan</span>
+                                        </button>
+                                        <button type="button" class="text-chip" id="btn-chip-clear" title="Bersihkan Kotak Teks">
+                                            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                                            <span>Hapus</span>
+                                        </button>
+                                    </div>
+                                </div>
+                                <textarea class="text-input" id="text-input" placeholder="Ketik atau tempel pesan, catatan, link, atau password di sini... (Ctrl+Enter untuk kirim)" rows="5"></textarea>
+                                <div class="text-compose-footer">
+                                    <div class="text-compose-meta">
+                                        <span class="text-char-counter" id="text-char-counter">0 karakter</span>
+                                        <span class="text-shortcut-pill"><kbd>Ctrl</kbd> + <kbd>Enter</kbd></span>
+                                    </div>
+                                    <div class="text-compose-actions">
+                                        <div class="device-select-wrapper">
+                                            <label class="device-select-label" for="text-device-select">Kirim ke:</label>
+                                            <select class="device-select" id="text-device-select">
+                                                <option value="">Pilih perangkat tujuan</option>
+                                            </select>
+                                        </div>
+                                        <button class="btn btn-primary btn-send-text" id="btn-send-text" disabled>
+                                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                                <line x1="22" y1="2" x2="11" y2="13"/>
+                                                <polygon points="22 2 15 22 11 13 2 9 22 2"/>
+                                            </svg>
+                                            Kirim
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Received Texts -->
+                        <div class="section" id="received-texts-section" style="display: none;">
+                            <h3 class="section-title">Pesan & Teks Diterima</h3>
+                            <div class="received-list" id="received-texts"></div>
+                        </div>
+                    </div>
+
+                    <!-- ============================================
+                         5. DEVICES PANEL (Radar Hub Dedicated View)
+                         ============================================ -->
+                    <div class="tab-panel" id="panel-devices">
+                        <section class="section" id="devices-section">
+                            <div class="section-header-wrap">
+                                <div class="section-title-group">
+                                    <h3 class="section-title">Perangkat Sekitar (Nearby Devices)</h3>
+                                    <p class="section-subtitle">Klik perangkat untuk memilih tujuan pengiriman 1-per-1 atau pilih Siaran</p>
+                                </div>
+                                <div class="radar-status-pill">
+                                    <span class="radar-beacon"></span>
+                                    <span class="radar-text">Radar LAN Aktif</span>
+                                </div>
+                            </div>
+                            <div class="devices-grid" id="devices-grid">
+                                <div class="empty-state" id="devices-empty">
+                                    <div class="radar-scan-graphic">
+                                        <div class="radar-scan-ring ring-1"></div>
+                                        <div class="radar-scan-ring ring-2"></div>
+                                        <div class="radar-scan-center">
+                                            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                                <path d="M4.93 19.07A10 10 0 0 1 12 2a10 10 0 0 1 7.07 17.07"/>
+                                                <path d="M7.76 16.24A6 6 0 0 1 12 6a6 6 0 0 1 4.24 10.24"/>
+                                                <circle cx="12" cy="12" r="2"/>
+                                            </svg>
+                                        </div>
+                                    </div>
+                                    <p class="empty-state-text">Mencari perangkat lain di jaringan Wi-Fi...</p>
+                                    <p class="empty-state-hint">Buka alamat ini di HP / perangkat lain dalam Wi-Fi yang sama:</p>
+                                    <div class="empty-state-connect-box">
+                                        <code id="display-lan-url">http://...</code>
+                                        <button class="btn btn-sm btn-ghost" id="btn-copy-url" type="button">Salin Alamat</button>
+                                    </div>
+                                    <div style="margin-top: 14px;">
+                                        <button class="btn btn-primary btn-sm" id="btn-empty-pair" type="button">
+                                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="2" width="8" height="8" rx="1"/><rect x="14" y="2" width="8" height="8" rx="1"/><rect x="2" y="14" width="8" height="8" rx="1"/><rect x="14" y="14" width="8" height="8" rx="1"/></svg>
+                                            Hubungkan via QR Code
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </section>
+                    </div>
+                </div>
+            </main>
+        </div>
+    </div>
+
+    <!-- ============================================
+         MOBILE BOTTOM NAVIGATION BAR (Screens <= 768px)
+         ============================================ -->
+    <nav class="mobile-bottom-nav" id="mobile-bottom-nav">
+        <button type="button" class="nav-tab-btn active" data-tab="files" id="m-tab-files">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/><polyline points="13 2 13 9 20 9"/></svg>
+            <span>Files</span>
+        </button>
+        <button type="button" class="nav-tab-btn" data-tab="recent" id="m-tab-recent">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+            <span>Recent</span>
+        </button>
+        <button type="button" class="nav-tab-btn" data-tab="library" id="m-tab-library">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/>
+            <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>
+            <span>Shared</span>
+        </button>
+        <button type="button" class="nav-tab-btn" data-tab="text" id="m-tab-text">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="17" y1="10" x2="3" y2="10"/><line x1="21" y1="6" x2="3" y2="6"/><line x1="21" y1="14" x2="3" y2="14"/><line x1="17" y1="18" x2="3" y2="18"/></svg>
+            <span>Text</span>
+        </button>
+        <button type="button" class="nav-tab-btn" data-tab="more" id="m-tab-more">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="1"/><circle cx="12" cy="5" r="1"/><circle cx="12" cy="19" r="1"/></svg>
+            <span>More</span>
+        </button>
+    </nav>
+
+    <!-- Mobile Floating Action Button (FAB) -->
+    <button type="button" class="mobile-fab" id="mobile-fab" aria-label="Upload File">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <line x1="12" y1="5" x2="12" y2="19"/>
+            <line x1="5" y1="12" x2="19" y2="12"/>
+        </svg>
+    </button>
+
+    <!-- Mobile Upload Bottom Sheet -->
+    <div class="bottom-sheet-overlay" id="upload-sheet-overlay" style="display: none;">
+        <div class="bottom-sheet" id="mobile-upload-sheet">
+            <div class="sheet-drag-pill"></div>
+            <div class="sheet-header">
+                <h3>Upload & Kirim Berkas</h3>
+                <p>Pilih berkas untuk dibagikan ke jaringan lokal</p>
+            </div>
+            <div class="sheet-actions-list">
+                <button type="button" class="sheet-btn" id="m-pick-files">
+                    <span class="sheet-btn-icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/><polyline points="13 2 13 9 20 9"/></svg></span>
+                    <div class="sheet-btn-text">
+                        <strong>Pilih Berkas</strong>
+                        <span>Dokumen, PDF, musik, video dari penyimpanan</span>
+                    </div>
+                </button>
+                <button type="button" class="sheet-btn" id="m-pick-camera">
+                    <span class="sheet-btn-icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg></span>
+                    <div class="sheet-btn-text">
+                        <strong>Foto Langsung</strong>
+                        <span>Buka kamera ponsel dan langsung kirim</span>
+                    </div>
+                </button>
+                <button type="button" class="sheet-btn" id="m-pick-folder">
+                    <span class="sheet-btn-icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg></span>
+                    <div class="sheet-btn-text">
+                        <strong>Kirim Seluruh Folder</strong>
+                        <span>Otomatis dikemas menjadi format .zip</span>
+                    </div>
+                </button>
+            </div>
+            <button type="button" class="sheet-cancel-btn" id="btn-cancel-upload-sheet">Batal</button>
+        </div>
+    </div>
+
+    <!-- Mobile File Actions Bottom Sheet (Triggered by ⋮ on rows) -->
+    <div class="bottom-sheet-overlay" id="action-sheet-overlay" style="display: none;">
+        <div class="bottom-sheet" id="mobile-action-sheet">
+            <div class="sheet-drag-pill"></div>
+            <div class="sheet-file-header">
+                <span class="sheet-file-icon" id="sheet-file-icon"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/><polyline points="13 2 13 9 20 9"/></svg></span>
+                <div class="sheet-file-info">
+                    <strong id="sheet-file-name">file.pdf</strong>
+                    <span id="sheet-file-meta">0 KB</span>
                 </div>
             </div>
-        </section>
-    </main>
+            <div class="sheet-actions-list">
+                <button type="button" class="sheet-btn" id="sheet-act-download">
+                    <span class="sheet-btn-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg></span>
+                    <div class="sheet-btn-text"><strong>Unduh Berkas</strong></div>
+                </button>
+                <button type="button" class="sheet-btn" id="sheet-act-preview">
+                    <span class="sheet-btn-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg></span>
+                    <div class="sheet-btn-text"><strong>Pratinjau (Preview)</strong></div>
+                </button>
+                <button type="button" class="sheet-btn" id="sheet-act-copy-link">
+                    <span class="sheet-btn-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg></span>
+                    <div class="sheet-btn-text"><strong>Salin Tautan / Nama</strong></div>
+                </button>
+                <button type="button" class="sheet-btn sheet-btn-danger" id="sheet-act-delete">
+                    <span class="sheet-btn-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg></span>
+                    <div class="sheet-btn-text"><strong>Hapus Berkas</strong></div>
+                </button>
+            </div>
+            <button type="button" class="sheet-cancel-btn" id="btn-cancel-action-sheet">Tutup</button>
+        </div>
+    </div>
+
+    <!-- Mobile More Menu Bottom Sheet -->
+    <div class="bottom-sheet-overlay" id="more-sheet-overlay" style="display: none;">
+        <div class="bottom-sheet" id="mobile-more-sheet">
+            <div class="sheet-drag-pill"></div>
+            <div class="sheet-header">
+                <h3>Menu & Opsi Tambahan</h3>
+            </div>
+            <div class="sheet-actions-list">
+                <button type="button" class="sheet-btn" id="m-more-devices">
+                    <span class="sheet-btn-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2" ry="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg></span>
+                    <div class="sheet-btn-text"><strong>Perangkat Sekitar (Radar LAN)</strong></div>
+                </button>
+                <button type="button" class="sheet-btn" id="m-more-profile">
+                    <span class="sheet-btn-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg></span>
+                    <div class="sheet-btn-text"><strong>Profil Perangkat Saya</strong></div>
+                </button>
+                <button type="button" class="sheet-btn" id="m-more-guide">
+                    <span class="sheet-btn-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg></span>
+                    <div class="sheet-btn-text"><strong>Panduan & Fitur LANX</strong></div>
+                </button>
+                <button type="button" class="sheet-btn" id="m-more-admin">
+                    <span class="sheet-btn-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 4l3 12h14l3-12-6 7-4-9-4 9-6-7z"/><path d="M3 20h18"/></svg></span>
+                    <div class="sheet-btn-text"><strong>Mode Admin</strong></div>
+                </button>
+                <button type="button" class="sheet-btn" id="m-more-settings">
+                    <span class="sheet-btn-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg></span>
+                    <div class="sheet-btn-text"><strong>Pengaturan Sistem</strong></div>
+                </button>
+            </div>
+            <button type="button" class="sheet-cancel-btn" id="btn-cancel-more-sheet">Tutup</button>
+        </div>
+    </div>
+
+    <!-- ============================================
+         DESKTOP & MOBILE MODALS
+         ============================================ -->
 
     <!-- Settings Modal -->
     <div class="modal-overlay" id="settings-modal" style="display: none;">
         <div class="modal">
             <div class="modal-header">
-                <h2 class="modal-title">Settings</h2>
-                <button class="btn-icon" id="btn-close-settings" aria-label="Close settings">
+                <h2 class="modal-title">Pengaturan</h2>
+                <button class="btn-icon" id="btn-close-settings" aria-label="Tutup pengaturan">
                     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                         <line x1="18" y1="6" x2="6" y2="18"/>
                         <line x1="6" y1="6" x2="18" y2="18"/>
@@ -255,40 +674,29 @@
             </div>
             <div class="modal-body">
                 <div class="settings-group">
-                    <h4 class="settings-group-title">Device</h4>
+                    <h4 class="settings-group-title">Perangkat Saya</h4>
                     <div class="settings-field">
-                        <label class="settings-label" for="setting-device-name">Device name</label>
-                        <input type="text" class="settings-input" id="setting-device-name" maxlength="64">
+                        <label class="settings-label" for="setting-device-name">Nama Perangkat Saya (Yang Tampil ke Orang Lain)</label>
+                        <input type="text" class="settings-input" id="setting-device-name" maxlength="64" placeholder="Contoh: Laptop Fendy, HP Budi">
+                        <p class="settings-hint">Nama ini yang akan tampil di daftar Nearby Devices pada komputer/HP orang lain agar mereka tahu ke mana harus mengirim berkas.</p>
                     </div>
                 </div>
                 <div class="settings-group">
-                    <h4 class="settings-group-title">Appearance</h4>
+                    <h4 class="settings-group-title">Tampilan (Tema)</h4>
                     <div class="settings-field">
                         <div class="theme-toggle">
                             <label class="theme-option">
                                 <input type="radio" name="theme" value="light" id="theme-light">
                                 <span class="theme-option-label">
-                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                        <circle cx="12" cy="12" r="5"/>
-                                        <line x1="12" y1="1" x2="12" y2="3"/>
-                                        <line x1="12" y1="21" x2="12" y2="23"/>
-                                        <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/>
-                                        <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/>
-                                        <line x1="1" y1="12" x2="3" y2="12"/>
-                                        <line x1="21" y1="12" x2="23" y2="12"/>
-                                        <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/>
-                                        <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/>
-                                    </svg>
-                                    Light
+                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>
+                                    Terang (Light)
                                 </span>
                             </label>
                             <label class="theme-option">
                                 <input type="radio" name="theme" value="dark" id="theme-dark">
                                 <span class="theme-option-label">
-                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                        <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
-                                    </svg>
-                                    Dark
+                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+                                    Gelap (Dark)
                                 </span>
                             </label>
                         </div>
@@ -299,7 +707,7 @@
                     <div class="settings-field settings-toggle-field">
                         <div>
                             <label class="settings-label" for="setting-auto-download">Terima Berkas Otomatis (Auto-Download)</label>
-                            <p class="settings-hint" style="font-size: var(--font-size-xs); color: var(--color-text-tertiary); margin-top: 2px;">Otomatis simpan berkas yang diterima ke folder Downloads tanpa perlu klik unduh.</p>
+                            <p class="settings-hint">Otomatis simpan berkas yang diterima ke folder Downloads tanpa perlu konfirmasi manual.</p>
                         </div>
                         <label class="toggle">
                             <input type="checkbox" id="setting-auto-download">
@@ -308,8 +716,8 @@
                     </div>
                     <div class="settings-field settings-toggle-field" style="margin-top: 12px;">
                         <div>
-                            <label class="settings-label" for="setting-auto-delete">Hapus Otomatis di Server Setelah Diterima (Auto-Delete on Delivery)</label>
-                            <p class="settings-hint" style="font-size: var(--font-size-xs); color: var(--color-text-tertiary); margin-top: 2px;">Langsung hapus berkas fisik di server begitu komputer penerima selesai mengunduhnya agar disk server tidak penuh.</p>
+                            <label class="settings-label" for="setting-auto-delete">Hapus Otomatis di Server Setelah Diterima</label>
+                            <p class="settings-hint">Langsung hapus berkas fisik di server begitu komputer penerima selesai mengunduhnya.</p>
                         </div>
                         <label class="toggle">
                             <input type="checkbox" id="setting-auto-delete" checked>
@@ -319,17 +727,41 @@
                     <div class="settings-field" style="margin-top: 14px; padding-top: 10px; border-top: 1px solid var(--color-border-light); display: flex; align-items: center; justify-content: space-between;">
                         <div>
                             <label class="settings-label">Penyimpanan Server</label>
-                            <p class="settings-hint" id="storage-usage-text" style="font-size: var(--font-size-xs); color: var(--color-text-tertiary); margin-top: 2px;">Memuat...</p>
+                            <p class="settings-hint" id="storage-usage-text">Memuat...</p>
                         </div>
                         <button type="button" class="btn btn-sm btn-ghost" id="btn-clean-server-storage" style="color: #ef4444; border-color: rgba(239, 68, 68, 0.3);">
-                            🗑️ Bersihkan Server
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+                            Bersihkan Server
                         </button>
                     </div>
                 </div>
+                <div class="settings-group" id="admin-settings-group" style="display: none;">
+                    <h4 class="settings-group-title">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 4l3 12h14l3-12-6 7-4-9-4 9-6-7z"/><path d="M3 20h18"/></svg>
+                        Konfigurasi Mode Admin
+                    </h4>
+                    <div class="settings-field">
+                        <label class="settings-label" for="setting-admin-quota">Kapasitas Maksimal Pustaka (GB)</label>
+                        <input type="number" class="settings-input" id="setting-admin-quota" min="1" max="500" value="5">
+                    </div>
+                    <div class="settings-field" style="margin-top: 10px;">
+                        <label class="settings-label" for="setting-admin-threshold">Ambang Batas File Besar Wajib Izin Admin (MB)</label>
+                        <input type="number" class="settings-input" id="setting-admin-threshold" min="5" max="1000" value="50">
+                    </div>
+                    <div class="settings-field" style="margin-top: 10px;">
+                        <label class="settings-label" for="setting-admin-new-pin">Ganti Master PIN Admin</label>
+                        <input type="password" class="settings-input" id="setting-admin-new-pin" maxlength="32" placeholder="PIN baru...">
+                    </div>
+                    <div class="settings-field" style="margin-top: 10px;">
+                        <label class="settings-label" for="setting-admin-server-name">Nama Server Host di Jaringan</label>
+                        <input type="text" class="settings-input" id="setting-admin-server-name" maxlength="64" placeholder="Nama server">
+                    </div>
+                </div>
+
                 <div class="settings-group">
-                    <h4 class="settings-group-title">Security</h4>
+                    <h4 class="settings-group-title">Keamanan</h4>
                     <div class="settings-field settings-toggle-field">
-                        <label class="settings-label" for="setting-pairing">Pairing required</label>
+                        <label class="settings-label" for="setting-pairing">Wajibkan Pairing Perangkat</label>
                         <label class="toggle">
                             <input type="checkbox" id="setting-pairing">
                             <span class="toggle-slider"></span>
@@ -337,15 +769,15 @@
                     </div>
                 </div>
                 <div class="settings-group">
-                    <h4 class="settings-group-title">About</h4>
+                    <h4 class="settings-group-title">Tentang</h4>
                     <div class="settings-field">
                         <p class="settings-about">LANX v<span id="settings-version">1.0.0</span></p>
-                        <p class="settings-about-sub">Share locally. Stay private.</p>
+                        <p class="settings-about-sub">Berbagi lokal aman tanpa kuota internet.</p>
                     </div>
                 </div>
             </div>
             <div class="modal-footer">
-                <button class="btn btn-primary" id="btn-save-settings">Save</button>
+                <button class="btn btn-primary" id="btn-save-settings">Simpan</button>
             </div>
         </div>
     </div>
@@ -354,18 +786,15 @@
     <div class="modal-overlay" id="pair-modal" style="display: none;">
         <div class="modal">
             <div class="modal-header">
-                <h2 class="modal-title">Connect device</h2>
-                <button class="btn-icon" id="btn-close-pair" aria-label="Close pairing">
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                        <line x1="18" y1="6" x2="6" y2="18"/>
-                        <line x1="6" y1="6" x2="18" y2="18"/>
-                    </svg>
+                <h2 class="modal-title">Hubungkan Perangkat</h2>
+                <button class="btn-icon" id="btn-close-pair" aria-label="Tutup pairing">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
                 </button>
             </div>
             <div class="modal-body" style="text-align: center;">
-                <p class="pair-instruction">Scan this QR code from another device</p>
+                <p class="pair-instruction">Scan QR code ini dari HP / perangkat lain</p>
                 <div class="qr-container" id="qr-container">
-                    <div class="qr-loading">Generating QR code...</div>
+                    <div class="qr-loading">Membuat QR code...</div>
                 </div>
                 <p class="pair-url" id="pair-url"></p>
             </div>
@@ -376,14 +805,14 @@
     <div class="modal-overlay" id="pair-request-modal" style="display: none;">
         <div class="modal modal-sm">
             <div class="modal-header">
-                <h2 class="modal-title">Pair Request</h2>
+                <h2 class="modal-title">Permintaan Koneksi</h2>
             </div>
             <div class="modal-body" style="text-align: center;">
-                <p><strong id="pair-request-device">Unknown device</strong> wants to connect.</p>
+                <p><strong id="pair-request-device">Perangkat</strong> ingin terhubung.</p>
             </div>
             <div class="modal-footer" style="justify-content: center; gap: 12px;">
-                <button class="btn btn-ghost" id="btn-reject-pair">Reject</button>
-                <button class="btn btn-primary" id="btn-accept-pair">Accept</button>
+                <button class="btn btn-ghost" id="btn-reject-pair">Tolak</button>
+                <button class="btn btn-primary" id="btn-accept-pair">Terima</button>
             </div>
         </div>
     </div>
@@ -395,12 +824,12 @@
     <div class="modal-overlay" id="incoming-modal" style="display: none;">
         <div class="modal modal-sm">
             <div class="modal-header">
-                <h2 class="modal-title" id="incoming-title">Incoming</h2>
+                <h2 class="modal-title" id="incoming-title">Berkas Masuk</h2>
             </div>
             <div class="modal-body" id="incoming-body"></div>
             <div class="modal-footer" style="justify-content: center; gap: 12px;">
-                <button class="btn btn-ghost" id="btn-reject-incoming">Dismiss</button>
-                <button class="btn btn-primary" id="btn-accept-incoming">Accept</button>
+                <button class="btn btn-ghost" id="btn-reject-incoming">Abaikan</button>
+                <button class="btn btn-primary" id="btn-accept-incoming">Terima</button>
             </div>
         </div>
     </div>
@@ -411,10 +840,7 @@
             <div class="modal-header">
                 <h2 class="modal-title">Profil Perangkat Ini</h2>
                 <button class="btn-icon" id="btn-close-profile" aria-label="Tutup profil">
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                        <line x1="18" y1="6" x2="6" y2="18"/>
-                        <line x1="6" y1="6" x2="18" y2="18"/>
-                    </svg>
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
                 </button>
             </div>
             <div class="modal-body">
@@ -422,22 +848,31 @@
                     <div class="settings-field">
                         <label class="settings-label" for="profile-device-name">Nama Perangkat</label>
                         <input type="text" class="settings-input" id="profile-device-name" maxlength="64" placeholder="Contoh: Laptop Kerja, HP Fendy">
-                        <p class="settings-hint" style="font-size: var(--font-size-xs); color: var(--color-text-tertiary); margin-top: 4px;">Nama ini akan terlihat oleh semua perangkat lain di jaringan.</p>
+                        <p class="settings-hint">Nama ini akan terlihat oleh semua perangkat lain di jaringan.</p>
                     </div>
                     <div class="settings-field" style="margin-top: 14px;">
                         <label class="settings-label">Tipe Perangkat</label>
                         <div class="platform-pills">
                             <label class="platform-pill">
                                 <input type="radio" name="profile-platform" value="desktop" id="plat-desktop">
-                                <span class="platform-pill-btn">💻 Laptop / PC</span>
+                                <span class="platform-pill-btn">
+                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2" ry="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
+                                    Laptop / PC
+                                </span>
                             </label>
                             <label class="platform-pill">
                                 <input type="radio" name="profile-platform" value="mobile" id="plat-mobile">
-                                <span class="platform-pill-btn">📱 Ponsel / HP</span>
+                                <span class="platform-pill-btn">
+                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="5" y="2" width="14" height="20" rx="2" ry="2"/><line x1="12" y1="18" x2="12.01" y2="18"/></svg>
+                                    Ponsel / HP
+                                </span>
                             </label>
                             <label class="platform-pill">
                                 <input type="radio" name="profile-platform" value="tablet" id="plat-tablet">
-                                <span class="platform-pill-btn">📟 Tablet</span>
+                                <span class="platform-pill-btn">
+                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="2" width="16" height="20" rx="2" ry="2"/><line x1="12" y1="18" x2="12.01" y2="18"/></svg>
+                                    Tablet
+                                </span>
                             </label>
                         </div>
                     </div>
@@ -459,10 +894,7 @@
             <div class="modal-header">
                 <h2 class="modal-title">Ubah Nama Perangkat</h2>
                 <button class="btn-icon" id="btn-close-rename" aria-label="Tutup ubah nama">
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                        <line x1="18" y1="6" x2="6" y2="18"/>
-                        <line x1="6" y1="6" x2="18" y2="18"/>
-                    </svg>
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
                 </button>
             </div>
             <div class="modal-body">
@@ -471,7 +903,7 @@
                         <label class="settings-label" for="rename-device-input">Beri nama baru / alias:</label>
                         <input type="text" class="settings-input" id="rename-device-input" maxlength="64" placeholder="Contoh: HP Kantor, Laptop B">
                         <input type="hidden" id="rename-device-id">
-                        <p class="settings-hint" style="font-size: var(--font-size-xs); color: var(--color-text-tertiary); margin-top: 4px;">Nama ini akan disimpan permanen di database LANX.</p>
+                        <p class="settings-hint">Nama ini akan disimpan permanen di database LANX.</p>
                     </div>
                 </div>
             </div>
@@ -482,12 +914,14 @@
         </div>
     </div>
 
-    <!-- Media Preview Lightbox Modal -->
+    <!-- Media Preview Lightbox Modal (Full screen on mobile) -->
     <div class="modal-overlay preview-modal-overlay" id="media-preview-modal" style="display: none;">
         <div class="preview-modal-dialog">
             <div class="preview-header">
                 <div class="preview-file-title-wrap">
-                    <span class="preview-icon" id="preview-icon">🖼️</span>
+                    <span class="preview-icon" id="preview-icon">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+                    </span>
                     <div class="preview-info">
                         <div class="preview-name" id="preview-filename">file_preview</div>
                         <div class="preview-meta" id="preview-meta">0 KB</div>
@@ -503,22 +937,145 @@
                         <span>Unduh</span>
                     </a>
                     <button class="btn-icon preview-close-btn" id="btn-close-preview" aria-label="Tutup pratinjau">
-                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                             <line x1="18" y1="6" x2="6" y2="18"/>
                             <line x1="6" y1="6" x2="18" y2="18"/>
                         </svg>
                     </button>
                 </div>
             </div>
-            <div class="preview-stage" id="preview-stage">
-                <!-- Injected: img, video, audio, or text container -->
+            <div class="preview-stage" id="preview-stage"></div>
+        </div>
+    </div>
+
+    <!-- Admin Login Modal -->
+    <div class="modal-overlay" id="admin-login-modal" style="display: none;">
+        <div class="modal modal-sm">
+            <div class="modal-header">
+                <h2 class="modal-title">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 4l3 12h14l3-12-6 7-4-9-4 9-6-7z"/><path d="M3 20h18"/></svg>
+                    Masuk Mode Admin
+                </h2>
+                <button class="btn-icon" id="btn-close-admin-login" aria-label="Tutup login admin">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <line x1="18" y1="6" x2="6" y2="18"/>
+                        <line x1="6" y1="6" x2="18" y2="18"/>
+                    </svg>
+                </button>
+            </div>
+            <div class="modal-body">
+                <div class="settings-group">
+                    <div class="settings-field">
+                        <label class="settings-label" for="admin-pin-input">Masukkan Master PIN Admin</label>
+                        <input type="password" class="settings-input" id="admin-pin-input" maxlength="32" placeholder="PIN Admin (default: 123456)">
+                        <p class="settings-hint">Setelah masuk, Anda dapat menghapus berkas apa pun dan menyetujui berkas besar.</p>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer" style="justify-content: flex-end; gap: 8px;">
+                <button class="btn btn-ghost" id="btn-cancel-admin-login">Batal</button>
+                <button class="btn btn-primary" id="btn-submit-admin-login">Masuk Admin</button>
             </div>
         </div>
     </div>
 
+    <!-- Welcome Guide Modal -->
+    <div class="modal-overlay guide-modal-overlay" id="welcome-guide-modal" style="display: none;">
+        <div class="guide-modal">
+            <button class="guide-close-btn" id="btn-close-guide" aria-label="Tutup panduan">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <line x1="18" y1="6" x2="6" y2="18"/>
+                    <line x1="6" y1="6" x2="18" y2="18"/>
+                </svg>
+            </button>
+
+            <div class="guide-hero">
+                <svg class="guide-logo" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <rect width="32" height="32" rx="8" fill="var(--color-primary)"/>
+                    <path d="M8 16L14 10V14H20V18H14V22L8 16Z" fill="white"/>
+                    <path d="M24 16L18 22V18H16V14H18V10L24 16Z" fill="white" opacity="0.6"/>
+                </svg>
+                <h2 class="guide-title">Selamat Datang di LANX</h2>
+                <p class="guide-tagline">Berbagi file dan teks super cepat via jaringan lokal (LAN/Wi-Fi). Tanpa internet, tanpa kuota, tanpa batas.</p>
+            </div>
+
+            <div class="guide-features">
+                <div class="guide-feature-card">
+                    <div class="guide-feature-icon">
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/>
+                            <polyline points="13 2 13 9 20 9"/>
+                        </svg>
+                    </div>
+                    <h4>Kirim File Instan</h4>
+                    <p>Tarik dan lepas (drag & drop) di laptop atau gunakan tombol upload di ponsel. File terkirim tanpa kompresi.</p>
+                </div>
+
+                <div class="guide-feature-card">
+                    <div class="guide-feature-icon">
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <circle cx="12" cy="12" r="10"/>
+                            <circle cx="12" cy="12" r="3"/>
+                        </svg>
+                    </div>
+                    <h4>1-per-1 atau Siaran</h4>
+                    <p>Pilih mode <strong>1 per 1 Device</strong> untuk kirim ke satu perangkat, atau <strong>Semua Device (All)</strong> untuk siaran massal.</p>
+                </div>
+
+                <div class="guide-feature-card">
+                    <div class="guide-feature-icon">
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/>
+                            <polyline points="22 6 12 13 2 6"/>
+                        </svg>
+                    </div>
+                    <h4>Kotak Masuk Offline</h4>
+                    <p>Perangkat tujuan sedang mati? File dan pesan tersimpan di server dan otomatis masuk saat perangkat menyala kembali.</p>
+                </div>
+
+                <div class="guide-feature-card">
+                    <div class="guide-feature-icon">
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/>
+                            <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/>
+                        </svg>
+                    </div>
+                    <h4>Pustaka Bersama</h4>
+                    <p>Simpan modul atau materi di tab <strong>Pustaka</strong>. Bebas diunduh berkali-kali oleh siapa pun.</p>
+                </div>
+
+                <div class="guide-feature-card">
+                    <div class="guide-feature-icon">
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <line x1="17" y1="10" x2="3" y2="10"/><line x1="21" y1="6" x2="3" y2="6"/><line x1="21" y1="14" x2="3" y2="14"/><line x1="17" y1="18" x2="3" y2="18"/>
+                        </svg>
+                    </div>
+                    <h4>Kirim Teks & Catatan</h4>
+                    <p>Bagikan password Wi-Fi, tautan web, atau catatan singkat dengan tombol tempel dan salin 1-klik.</p>
+                </div>
+
+                <div class="guide-feature-card">
+                    <div class="guide-feature-icon">
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>
+                        </svg>
+                    </div>
+                    <h4>Ubah Nama Perangkat</h4>
+                    <p>Klik nama perangkat Anda di atas untuk mengganti nama agar rekan di laboratorium langsung mengenali Anda.</p>
+                </div>
+            </div>
+
+            <div class="guide-footer">
+                <button class="btn btn-primary btn-lg" id="btn-dismiss-guide">Mulai Menggunakan LANX</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Scripts -->
     <script src="/js/app.js"></script>
     <script src="/js/devices.js"></script>
     <script src="/js/transfer.js"></script>
     <script src="/js/clipboard.js"></script>
+    <script src="/js/library.js"></script>
 </body>
 </html>

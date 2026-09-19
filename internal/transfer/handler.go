@@ -216,12 +216,14 @@ func (h *Handler) handleUpload(w http.ResponseWriter, r *http.Request) {
 		filename = "unnamed_file"
 	}
 
+	description := strings.TrimSpace(r.FormValue("description"))
+
 	// Create transfer record
 	deviceName := senderName
 	if targetDeviceID == "all" {
 		deviceName = "Semua Perangkat"
 	}
-	t := h.mgr.Create(filename, header.Size, "received", deviceName, targetDeviceID)
+	t := h.mgr.Create(filename, header.Size, "received", deviceName, targetDeviceID, description)
 
 	// Broadcast transfer started
 	if h.onTransferEvent != nil {
@@ -234,6 +236,7 @@ func (h *Handler) handleUpload(w http.ResponseWriter, r *http.Request) {
 			"target_device_id":   targetDeviceID,
 			"sender_id":          senderID,
 			"from_device":        senderName,
+			"description":        description,
 		})
 	}
 
@@ -299,7 +302,7 @@ func (h *Handler) handleUpload(w http.ResponseWriter, r *http.Request) {
 			targetOnline = h.isOnline(targetDeviceID)
 		}
 		if !targetOnline {
-			h.mailbox.AddFile(t.ID, downloadID, filename, written, targetDeviceID, senderID, senderName)
+			h.mailbox.AddFile(t.ID, downloadID, filename, written, targetDeviceID, senderID, senderName, description)
 			offlineQueued = true
 		}
 	}
@@ -314,6 +317,7 @@ func (h *Handler) handleUpload(w http.ResponseWriter, r *http.Request) {
 			"target_device_id": targetDeviceID,
 			"sender_id":        senderID,
 			"from_device":      senderName,
+			"description":      description,
 			"download_url":     fmt.Sprintf("/api/download/%s", downloadID),
 			"offline_queued":   offlineQueued,
 		})
@@ -371,11 +375,13 @@ func (h *Handler) handleUploadFolder(w http.ResponseWriter, r *http.Request) {
 		senderName = "Perangkat Lain"
 	}
 
+	description := strings.TrimSpace(r.FormValue("description"))
+
 	deviceName := senderName
 	if targetDeviceID == "all" {
 		deviceName = "Semua Perangkat"
 	}
-	t := h.mgr.Create(folderName, 0, "received", deviceName, targetDeviceID)
+	t := h.mgr.Create(folderName, 0, "received", deviceName, targetDeviceID, description)
 
 	if h.onTransferEvent != nil {
 		h.onTransferEvent("transfer_started", map[string]any{
@@ -387,6 +393,7 @@ func (h *Handler) handleUploadFolder(w http.ResponseWriter, r *http.Request) {
 			"target_device_id":   targetDeviceID,
 			"sender_id":          senderID,
 			"from_device":        senderName,
+			"description":        description,
 		})
 	}
 
@@ -461,7 +468,7 @@ func (h *Handler) handleUploadFolder(w http.ResponseWriter, r *http.Request) {
 			targetOnline = h.isOnline(targetDeviceID)
 		}
 		if !targetOnline {
-			h.mailbox.AddFile(t.ID, downloadID, folderName, zipSize, targetDeviceID, senderID, senderName)
+			h.mailbox.AddFile(t.ID, downloadID, folderName, zipSize, targetDeviceID, senderID, senderName, description)
 			offlineQueued = true
 		}
 	}
@@ -475,6 +482,7 @@ func (h *Handler) handleUploadFolder(w http.ResponseWriter, r *http.Request) {
 			"target_device_id": targetDeviceID,
 			"sender_id":        senderID,
 			"from_device":      senderName,
+			"description":      description,
 			"download_url":     fmt.Sprintf("/api/download/%s", downloadID),
 			"offline_queued":   offlineQueued,
 		})

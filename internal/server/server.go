@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/fendy/lanx/internal/config"
+	"github.com/fendy/lanx/internal/device"
 )
 
 //go:embed all:static
@@ -19,10 +20,11 @@ var webFS embed.FS
 
 // Server is the main LANX HTTP server.
 type Server struct {
-	cfg    *config.Config
-	mux    *http.ServeMux
-	srv    *http.Server
-	logger *log.Logger
+	cfg     *config.Config
+	mux     *http.ServeMux
+	srv     *http.Server
+	logger  *log.Logger
+	devices *device.Registry
 }
 
 // New creates a new Server instance.
@@ -34,6 +36,11 @@ func New(cfg *config.Config, logger *log.Logger) *Server {
 	}
 	s.registerRoutes()
 	return s
+}
+
+// SetDeviceRegistry sets the device registry reference.
+func (s *Server) SetDeviceRegistry(r *device.Registry) {
+	s.devices = r
 }
 
 // Start begins listening on the configured port.

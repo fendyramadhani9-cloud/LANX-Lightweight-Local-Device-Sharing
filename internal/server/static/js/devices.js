@@ -157,18 +157,18 @@ const Devices = {
 
         if (this.sendMode === 'all' || this.selectedDevice === 'all') {
             const countText = visible.length > 0 ? ` (${visible.length} perangkat online)` : '';
-            if (dropTarget) dropTarget.textContent = `📢 Semua Perangkat (All Devices)${countText}`;
-            if (descTarget) descTarget.innerHTML = `Target: <strong>📢 Semua Perangkat (Siaran Massal)${countText}</strong>`;
+            if (dropTarget) dropTarget.textContent = `Semua Perangkat (All Devices)${countText}`;
+            if (descTarget) descTarget.innerHTML = `Target: <strong>Semua Perangkat (Siaran Massal)${countText}</strong>`;
         } else if (this.selectedDevice) {
             const dev = this.getDeviceById(this.selectedDevice);
             const isOnline = dev && dev.online !== false;
             const name = dev ? dev.name : '1 Perangkat';
             if (isOnline) {
-                if (dropTarget) dropTarget.textContent = `🎯 ${name}`;
-                if (descTarget) descTarget.innerHTML = `Target: <strong>🎯 ${LANX.escapeHtml(name)}</strong>`;
+                if (dropTarget) dropTarget.textContent = `${name}`;
+                if (descTarget) descTarget.innerHTML = `Target: <strong>${LANX.escapeHtml(name)}</strong>`;
             } else {
-                if (dropTarget) dropTarget.textContent = `📬 ${name} (Kotak Masuk Server)`;
-                if (descTarget) descTarget.innerHTML = `Target: <strong>📬 ${LANX.escapeHtml(name)}</strong> <span class="offline-target-note">(Offline — Otomatis masuk saat online)</span>`;
+                if (dropTarget) dropTarget.textContent = `${name} (Kotak Masuk Server)`;
+                if (descTarget) descTarget.innerHTML = `Target: <strong>${LANX.escapeHtml(name)}</strong> <span class="offline-target-note">(Offline — Otomatis masuk saat online)</span>`;
             }
         } else {
             if (dropTarget) dropTarget.textContent = 'Pilih perangkat tujuan di bawah';
@@ -191,8 +191,14 @@ const Devices = {
     },
 
     getVisibleDevices() {
-        const myId = LANX.clientId || (LANX.deviceInfo && LANX.deviceInfo.id);
-        return (this.devices || []).filter(d => d.id !== myId);
+        const myId = LANX.clientId;
+        const hostId = LANX.deviceInfo && LANX.deviceInfo.id;
+        const isLocalHost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+        return (this.devices || []).filter(d => {
+            if (d.id === myId) return false;
+            if (isLocalHost && hostId && d.id === hostId) return false;
+            return true;
+        });
     },
 
     render() {
@@ -215,7 +221,7 @@ const Devices = {
         const isAllSelected = this.sendMode === 'all' || this.selectedDevice === 'all';
         const broadcastCardHtml = `
             <div class="device-card broadcast-card ${isAllSelected ? 'selected' : ''}" data-device-id="all">
-                <div class="device-card-icon">📢</div>
+                <div class="device-card-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4.93 19.07A10 10 0 0 1 12 2a10 10 0 0 1 7.07 17.07"/><path d="M7.76 16.24A6 6 0 0 1 12 6a6 6 0 0 1 4.24 10.24"/><circle cx="12" cy="12" r="2"/></svg></div>
                 <div class="device-card-info">
                     <div class="device-card-name">Semua Perangkat (All)</div>
                     <div class="device-card-status">
@@ -230,11 +236,15 @@ const Devices = {
         const deviceCardsHtml = visible.map(d => this.renderCard(d)).join('');
         grid.innerHTML = broadcastCardHtml + deviceCardsHtml;
 
+        if (typeof LANX !== 'undefined' && LANX.updateSidebarCounters) {
+            LANX.updateSidebarCounters();
+        }
+
         // Attach click handlers
         grid.querySelectorAll('.device-card').forEach(card => {
             card.addEventListener('click', (e) => {
-                // Ignore if clicked on rename button
-                if (e.target.closest('.device-card-rename-btn')) return;
+                // Ignore if clicked on rename or promote button
+                if (e.target.closest('.device-card-rename-btn') || e.target.closest('.device-promote-admin-btn')) return;
                 const id = card.dataset.deviceId;
                 this.selectDevice(id);
             });
@@ -246,6 +256,39 @@ const Devices = {
                 e.stopPropagation();
                 const id = btn.dataset.renameId;
                 this.openRenameModal(id);
+            });
+        });
+
+        // Attach promote button click handlers
+        grid.querySelectorAll('.device-promote-admin-btn').forEach(btn => {
+            btn.addEventListener('click', async (e) => {
+                e.stopPropagation();
+                const id = btn.dataset.deviceId;
+                const cur = btn.dataset.currentRole;
+                const newRole = cur === 'admin' ? 'user' : 'admin';
+                const actionText = newRole === 'admin' ? 'jadikan Admin' : 'kembalikan ke User biasa';
+                if (!confirm(`Apakah Anda yakin ingin ${actionText} perangkat ini?`)) return;
+
+                try {
+                    const res = await fetch(`/api/devices/${encodeURIComponent(id)}/role`, {
+                        method: 'PUT',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-Admin-Token': LANX.adminToken || '',
+                        },
+                        body: JSON.stringify({ role: newRole }),
+                    });
+                    if (res.ok) {
+                        const updated = await res.json();
+                        this.addOrUpdateDevice(updated, updated.online);
+                        LANX.showToast('Status admin perangkat berhasil diperbarui!', 'success');
+                    } else {
+                        const err = await res.json();
+                        LANX.showToast(err.error || 'Gagal mengubah status admin', 'error');
+                    }
+                } catch (err) {
+                    LANX.showToast('Gagal mengubah status admin perangkat', 'error');
+                }
             });
         });
     },
@@ -277,17 +320,30 @@ const Devices = {
         const icon = this.getDeviceIcon(device.name, device.platform);
         const isOnline = device.online !== false;
         const isSelected = this.sendMode === 'single' && this.selectedDevice === device.id;
+        const isAdminDevice = device.role === 'admin' || device.is_host;
+        const canPromote = LANX.isAdmin && !device.is_host && device.id !== LANX.clientId;
 
         return `
             <div class="device-card ${isSelected ? 'selected' : ''} ${!isOnline ? 'offline-device' : ''}" data-device-id="${device.id}">
                 <div class="device-card-icon">${icon}</div>
                 <div class="device-card-info">
-                    <div class="device-card-name" title="${LANX.escapeHtml(device.name)}">${LANX.escapeHtml(device.name)}</div>
+                    <div class="device-card-name" title="${LANX.escapeHtml(device.name)}">
+                        ${LANX.escapeHtml(device.name)}
+                        ${isAdminDevice ? '<span class="admin-badge" title="Perangkat ini berstatus Admin">Admin</span>' : ''}
+                    </div>
                     <div class="device-card-status">
                         <span class="status-dot ${isOnline ? 'online' : 'offline'}"></span>
                         ${isOnline ? 'Online' : 'Offline'}
-                        ${!isOnline ? '<span class="mailbox-pill" title="Berkas/pesan disimpan di server dan otomatis masuk saat komputer ini online">📬 Kotak Masuk</span>' : ''}
+                        ${!isOnline ? '<span class="mailbox-pill" title="Berkas/pesan disimpan di server dan otomatis masuk saat komputer ini online">Kotak Masuk</span>' : ''}
                     </div>
+                    ${canPromote ? `
+                        <div>
+                            <button type="button" class="device-promote-admin-btn" data-device-id="${device.id}" data-current-role="${device.role || 'user'}" title="${device.role === 'admin' ? 'Cabut Akses Admin' : 'Jadikan Admin'}">
+                                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+                                ${device.role === 'admin' ? 'Cabut Admin' : 'Jadikan Admin'}
+                            </button>
+                        </div>
+                    ` : ''}
                 </div>
                 <button class="device-card-rename-btn" data-rename-id="${device.id}" title="Ubah nama / alias perangkat ini">
                     <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -300,21 +356,26 @@ const Devices = {
     },
 
     getDeviceIcon(name, platform) {
-        if (platform === 'mobile') return '📱';
-        if (platform === 'tablet') return '📟';
-        if (platform === 'desktop') return '💻';
+        const svgPhone = '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="2" width="14" height="20" rx="2" ry="2"/><line x1="12" y1="18" x2="12.01" y2="18"/></svg>';
+        const svgTablet = '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="2" width="16" height="20" rx="2" ry="2"/><line x1="12" y1="18" x2="12.01" y2="18"/></svg>';
+        const svgDesktop = '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="14" rx="2" ry="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>';
+        const svgServer = '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="2" width="20" height="8" rx="2" ry="2"/><rect x="2" y="14" width="20" height="8" rx="2" ry="2"/><line x1="6" y1="6" x2="6.01" y2="6"/><line x1="6" y1="18" x2="6.01" y2="18"/></svg>';
+
+        if (platform === 'mobile') return svgPhone;
+        if (platform === 'tablet') return svgTablet;
+        if (platform === 'desktop') return svgDesktop;
 
         const lower = (name || '').toLowerCase();
         if (lower.includes('phone') || lower.includes('mobile') || lower.includes('android') || lower.includes('iphone') || lower.includes('hp')) {
-            return '📱';
+            return svgPhone;
         }
         if (lower.includes('tablet') || lower.includes('ipad')) {
-            return '📟';
+            return svgTablet;
         }
         if (lower.includes('server')) {
-            return '🖥️';
+            return svgServer;
         }
-        return '💻';
+        return svgDesktop;
     },
 
     selectDevice(id) {
@@ -347,7 +408,7 @@ const Devices = {
 
         selects.forEach(select => {
             const options = [
-                `<option value="all" ${this.sendMode === 'all' || this.selectedDevice === 'all' ? 'selected' : ''}>📢 Semua Perangkat (All Devices)</option>`,
+                `<option value="all" ${this.sendMode === 'all' || this.selectedDevice === 'all' ? 'selected' : ''}>Semua Perangkat (All Devices)</option>`,
                 '<option disabled>──────────</option>'
             ];
 
@@ -361,10 +422,10 @@ const Devices = {
             }
 
             if (offlineDevs.length > 0) {
-                options.push(`<optgroup label="📬 Kotak Masuk Offline (${offlineDevs.length})">`);
+                options.push(`<optgroup label="Kotak Masuk Offline (${offlineDevs.length})">`);
                 offlineDevs.forEach(d => {
                     const isSelected = (this.sendMode === 'single' && this.selectedDevice === d.id);
-                    options.push(`<option value="${d.id}" ${isSelected ? 'selected' : ''}>📬 ${LANX.escapeHtml(d.name)} (Offline)</option>`);
+                    options.push(`<option value="${d.id}" ${isSelected ? 'selected' : ''}>${LANX.escapeHtml(d.name)} (Offline)</option>`);
                 });
                 options.push('</optgroup>');
             }

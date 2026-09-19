@@ -15,6 +15,7 @@ import (
 	"github.com/fendy/lanx/internal/config"
 	"github.com/fendy/lanx/internal/device"
 	"github.com/fendy/lanx/internal/discovery"
+	"github.com/fendy/lanx/internal/library"
 	"github.com/fendy/lanx/internal/pairing"
 	"github.com/fendy/lanx/internal/server"
 	"github.com/fendy/lanx/internal/transfer"
@@ -123,6 +124,7 @@ func main() {
 							"target_device_id": it.TargetDeviceID,
 							"sender_id":        it.SenderID,
 							"from_device":      it.SenderName,
+							"description":      it.Description,
 							"download_url":     fmt.Sprintf("/api/download/%s", it.DownloadID),
 							"is_offline_queue": true,
 							"queued_at":        it.Timestamp,
@@ -179,14 +181,24 @@ func main() {
 	})
 	clipHandler.SetMailbox(mailbox)
 
+	// Create library manager & handler (Shared Library)
+	libraryDBPath := filepath.Join(cfg.DataDir(), "library.json")
+	libraryMgr := library.NewManager(libraryDBPath, cfg.GetLibraryPath(), func(eventType string, data any) {
+		wsHub.Broadcast(eventType, data)
+	})
+	libraryMgr.StartAutoCleaner(15 * time.Minute)
+	libraryHandler := library.NewHandler(libraryMgr, cfg, cfg.GetLibraryPath())
+
 	// Create HTTP server
 	srv := server.New(cfg, logger)
+	srv.SetDeviceRegistry(registry)
 	mux := srv.Mux()
 
 	// Register all routes
 	wsHub.RegisterRoutes(mux)
 	registry.RegisterRoutes(mux)
 	transferHandler.RegisterRoutes(mux)
+	libraryHandler.RegisterRoutes(mux)
 	pairingMgr.RegisterRoutes(mux)
 	clipHandler.RegisterRoutes(mux)
 

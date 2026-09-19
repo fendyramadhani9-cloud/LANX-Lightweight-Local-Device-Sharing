@@ -20,27 +20,28 @@ const (
 
 // Transfer represents an ongoing or completed file transfer.
 type Transfer struct {
-	ID           string `json:"id"`
-	Filename     string `json:"filename"`
-	Size         int64  `json:"size"`
-	Loaded       int64  `json:"loaded"`
-	Percentage   float64 `json:"percentage"`
-	Status       Status `json:"status"`
-	Direction    string `json:"direction"` // "sent" or "received"
-	DeviceName   string `json:"device"`
-	DeviceID     string `json:"device_id,omitempty"`
-	DownloadID   string `json:"download_id,omitempty"`
-	Timestamp    int64  `json:"timestamp"`
-	Error        string `json:"error,omitempty"`
+	ID          string  `json:"id"`
+	Filename    string  `json:"filename"`
+	Size        int64   `json:"size"`
+	Loaded      int64   `json:"loaded"`
+	Percentage  float64 `json:"percentage"`
+	Status      Status  `json:"status"`
+	Direction   string  `json:"direction"` // "sent" or "received"
+	DeviceName  string  `json:"device"`
+	DeviceID    string  `json:"device_id,omitempty"`
+	DownloadID  string  `json:"download_id,omitempty"`
+	Timestamp   int64   `json:"timestamp"`
+	Description string  `json:"description,omitempty"`
+	Error       string  `json:"error,omitempty"`
 }
 
 // Manager tracks all transfers and their progress.
 type Manager struct {
-	mu        sync.RWMutex
-	active    map[string]*Transfer
-	history   []*Transfer
-	maxHist   int
-	onUpdate  func(t *Transfer) // callback for WebSocket broadcast
+	mu       sync.RWMutex
+	active   map[string]*Transfer
+	history  []*Transfer
+	maxHist  int
+	onUpdate func(t *Transfer) // callback for WebSocket broadcast
 }
 
 // NewManager creates a new transfer manager.
@@ -54,16 +55,21 @@ func NewManager(onUpdate func(t *Transfer)) *Manager {
 }
 
 // Create initializes a new transfer.
-func (m *Manager) Create(filename string, size int64, direction, deviceName, deviceID string) *Transfer {
+func (m *Manager) Create(filename string, size int64, direction, deviceName, deviceID string, description ...string) *Transfer {
+	desc := ""
+	if len(description) > 0 {
+		desc = description[0]
+	}
 	t := &Transfer{
-		ID:         generateTransferID(),
-		Filename:   filename,
-		Size:       size,
-		Status:     StatusPreparing,
-		Direction:  direction,
-		DeviceName: deviceName,
-		DeviceID:   deviceID,
-		Timestamp:  time.Now().UnixMilli(),
+		ID:          generateTransferID(),
+		Filename:    filename,
+		Size:        size,
+		Status:      StatusPreparing,
+		Direction:   direction,
+		DeviceName:  deviceName,
+		DeviceID:    deviceID,
+		Description: desc,
+		Timestamp:   time.Now().UnixMilli(),
 	}
 
 	m.mu.Lock()

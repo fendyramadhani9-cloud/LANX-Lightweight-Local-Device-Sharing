@@ -19,6 +19,7 @@ type MailboxItem struct {
 	Filename       string `json:"filename,omitempty"`
 	Size           int64  `json:"size,omitempty"`
 	TextContent    string `json:"text_content,omitempty"`
+	Description    string `json:"description,omitempty"`
 	TargetDeviceID string `json:"target_device_id"`
 	SenderID       string `json:"sender_id"`
 	SenderName     string `json:"sender_name"`
@@ -45,7 +46,11 @@ func NewMailbox(filePath string) *Mailbox {
 }
 
 // AddFile queues a file for an offline device.
-func (mb *Mailbox) AddFile(transferID, downloadID, filename string, size int64, targetDeviceID, senderID, senderName string) *MailboxItem {
+func (mb *Mailbox) AddFile(transferID, downloadID, filename string, size int64, targetDeviceID, senderID, senderName string, description ...string) *MailboxItem {
+	desc := ""
+	if len(description) > 0 {
+		desc = description[0]
+	}
 	item := &MailboxItem{
 		ID:             generateMailboxID(),
 		Type:           "file",
@@ -53,6 +58,7 @@ func (mb *Mailbox) AddFile(transferID, downloadID, filename string, size int64, 
 		DownloadID:     downloadID,
 		Filename:       filename,
 		Size:           size,
+		Description:    desc,
 		TargetDeviceID: targetDeviceID,
 		SenderID:       senderID,
 		SenderName:     senderName,

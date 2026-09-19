@@ -25,6 +25,7 @@ type Device struct {
 	IsBrowser  bool   `json:"is_browser,omitempty"`
 	Platform   string `json:"platform,omitempty"`
 	IsHost     bool   `json:"is_host,omitempty"`
+	Role       string `json:"role,omitempty"` // "admin" or ""
 }
 
 // Registry maintains a thread-safe, persistent database of devices.
@@ -58,6 +59,7 @@ func (r *Registry) SetHostDevice(host *Device) {
 	if host != nil {
 		host.IsHost = true
 		host.Online = true
+		host.Role = "admin"
 		if host.FirstSeen == 0 {
 			host.FirstSeen = time.Now().UnixMilli()
 		}
@@ -187,6 +189,30 @@ func (r *Registry) UpdateProfile(id, name, platform string) (*Device, error) {
 	return target, nil
 }
 
+// SetRole updates the device role (e.g. "admin" or "").
+func (r *Registry) SetRole(id, role string) (*Device, error) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	var target *Device
+	if r.hostDevice != nil && r.hostDevice.ID == id {
+		r.hostDevice.Role = role
+		target = r.hostDevice
+	} else if d, ok := r.devices[id]; ok {
+		d.Role = role
+		target = d
+		_ = r.saveToDiskLocked()
+	} else {
+		return nil, fmt.Errorf("device not found")
+	}
+
+	if r.onEvent != nil {
+		r.onEvent("device_update", map[string]any{"device": target})
+	}
+
+	return target, nil
+}
+
 // Remove deletes a device from the database and memory.
 func (r *Registry) Remove(id string) {
 	r.mu.Lock()
@@ -304,6 +330,7 @@ func (r *Registry) RegisterRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("GET /api/devices", r.handleList)
 	mux.HandleFunc("GET /api/devices/{id}", r.handleGet)
 	mux.HandleFunc("PUT /api/devices/{id}", r.handleUpdateDeviceProfile)
+	mux.HandleFunc("PUT /api/devices/{id}/role", r.handleSetRole)
 	mux.HandleFunc("DELETE /api/devices/{id}", r.handleDeleteDevice)
 	mux.HandleFunc("POST /api/device/profile", r.handleSelfProfile)
 }
@@ -408,4 +435,37 @@ func (r *Registry) handleDeleteDevice(w http.ResponseWriter, req *http.Request) 
 	r.Remove(id)
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(map[string]string{"status": "deleted"})
+}
+
+type setRolePayload struct {
+	Role string `json:"role"`
+}
+
+func (r *Registry) handleSetRole(w http.ResponseWriter, req *http.Request) {
+	id := req.PathValue("id")
+	if id == "" {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(w).Encode(map[string]string{"error": "Missing device ID"})
+		return
+	}
+
+	var payload setRolePayload
+	if err := json.NewDecoder(req.Body).Decode(&payload); err != nil {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(w).Encode(map[string]string{"error": "Invalid request body"})
+		return
+	}
+
+	updated, err := r.SetRole(id, payload.Role)
+	if err != nil {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(w).Encode(map[string]string{"error": err.Error()})
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(updated)
 }

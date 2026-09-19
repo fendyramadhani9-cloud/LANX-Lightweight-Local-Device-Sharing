@@ -15,6 +15,9 @@ func (s *Server) registerRoutes() {
 	s.mux.HandleFunc("PUT /api/device", s.handleUpdateDevice)
 	s.mux.HandleFunc("GET /api/settings", s.handleGetSettings)
 	s.mux.HandleFunc("PUT /api/settings", s.handleUpdateSettings)
+	s.mux.HandleFunc("POST /api/admin/login", s.handleAdminLogin)
+	s.mux.HandleFunc("GET /api/admin/config", s.handleGetAdminConfig)
+	s.mux.HandleFunc("PUT /api/admin/config", s.handleUpdateAdminConfig)
 
 	// Serve embedded frontend
 	staticFS := StaticFS()
@@ -81,6 +84,10 @@ func (s *Server) handleUpdateDevice(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if s.devices != nil {
+		_, _ = s.devices.UpdateProfile(s.cfg.DeviceID, name, "")
+	}
+
 	writeJSON(w, http.StatusOK, deviceResponse{
 		ID:      s.cfg.DeviceID,
 		Name:    s.cfg.DeviceName,
@@ -118,8 +125,9 @@ func (s *Server) handleUpdateSettings(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	name := strings.TrimSpace(req.DeviceName)
 	if err := s.cfg.Update(func(c *config.Config) {
-		if name := strings.TrimSpace(req.DeviceName); name != "" && len(name) <= 64 {
+		if name != "" && len(name) <= 64 {
 			c.DeviceName = name
 		}
 		if req.Theme == "light" || req.Theme == "dark" {
@@ -132,7 +140,102 @@ func (s *Server) handleUpdateSettings(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if name != "" && s.devices != nil {
+		_, _ = s.devices.UpdateProfile(s.cfg.DeviceID, name, "")
+	}
+
 	s.handleGetSettings(w, r)
+}
+
+// --- Admin Endpoints ---
+
+type adminLoginRequest struct {
+	PIN string `json:"pin"`
+}
+
+func (s *Server) handleAdminLogin(w http.ResponseWriter, r *http.Request) {
+	var req adminLoginRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeError(w, http.StatusBadRequest, "Permintaan tidak valid")
+		return
+	}
+
+	pin := strings.TrimSpace(req.PIN)
+	if pin == "" || pin != s.cfg.GetAdminPIN() {
+		writeError(w, http.StatusUnauthorized, "PIN Admin salah")
+		return
+	}
+
+	writeJSON(w, http.StatusOK, map[string]any{
+		"status":      "ok",
+		"admin_token": s.cfg.GetAdminPIN(),
+		"message":     "Login admin berhasil",
+	})
+}
+
+type adminConfigResponse struct {
+	AdminPIN               string `json:"admin_pin"`
+	LibraryQuotaBytes      int64  `json:"library_quota_bytes"`
+	ApprovalThresholdBytes int64  `json:"approval_threshold_bytes"`
+}
+
+func (s *Server) handleGetAdminConfig(w http.ResponseWriter, r *http.Request) {
+	token := r.Header.Get("X-Admin-Token")
+	if token == "" || token != s.cfg.GetAdminPIN() {
+		writeError(w, http.StatusUnauthorized, "Unauthorized: Mode Admin diperlukan")
+		return
+	}
+
+	writeJSON(w, http.StatusOK, adminConfigResponse{
+		AdminPIN:               s.cfg.GetAdminPIN(),
+		LibraryQuotaBytes:      s.cfg.GetLibraryQuotaBytes(),
+		ApprovalThresholdBytes: s.cfg.GetApprovalThresholdBytes(),
+	})
+}
+
+type updateAdminConfigRequest struct {
+	NewPIN                 string `json:"new_pin,omitempty"`
+	LibraryQuotaBytes      int64  `json:"library_quota_bytes,omitempty"`
+	ApprovalThresholdBytes int64  `json:"approval_threshold_bytes,omitempty"`
+	AdminToken             string `json:"admin_token"`
+}
+
+func (s *Server) handleUpdateAdminConfig(w http.ResponseWriter, r *http.Request) {
+	var req updateAdminConfigRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeError(w, http.StatusBadRequest, "Permintaan tidak valid")
+		return
+	}
+
+	token := r.Header.Get("X-Admin-Token")
+	if token == "" {
+		token = req.AdminToken
+	}
+	if token != s.cfg.GetAdminPIN() {
+		writeError(w, http.StatusUnauthorized, "Unauthorized: PIN Admin tidak sah")
+		return
+	}
+
+	if err := s.cfg.Update(func(c *config.Config) {
+		if pin := strings.TrimSpace(req.NewPIN); pin != "" {
+			c.AdminPIN = pin
+		}
+		if req.LibraryQuotaBytes > 0 {
+			c.LibraryQuotaBytes = req.LibraryQuotaBytes
+		}
+		if req.ApprovalThresholdBytes > 0 {
+			c.ApprovalThresholdBytes = req.ApprovalThresholdBytes
+		}
+	}); err != nil {
+		writeError(w, http.StatusInternalServerError, "Gagal menyimpan konfigurasi admin")
+		return
+	}
+
+	writeJSON(w, http.StatusOK, adminConfigResponse{
+		AdminPIN:               s.cfg.GetAdminPIN(),
+		LibraryQuotaBytes:      s.cfg.GetLibraryQuotaBytes(),
+		ApprovalThresholdBytes: s.cfg.GetApprovalThresholdBytes(),
+	})
 }
 
 // --- JSON helpers ---
