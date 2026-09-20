@@ -245,3 +245,74 @@ func TestLibraryHTTPHandlers(t *testing.T) {
 		t.Fatalf("Delete failed with status %d: %s", delRec.Code, delRec.Body.String())
 	}
 }
+
+func TestLibraryFoldersAndClear(t *testing.T) {
+	tempDir := t.TempDir()
+	storagePath := filepath.Join(tempDir, "library.json")
+	libDir := filepath.Join(tempDir, "files")
+
+	mgr := NewManager(storagePath, libDir, nil)
+
+	// Verify default folders
+	folders := mgr.GetFolders()
+	if len(folders) != 1 || folders[0] != "Umum" {
+		t.Fatalf("Expected default folder 'Umum', got: %v", folders)
+	}
+
+	// Add folder
+	if err := mgr.AddFolder("Modul Kuliah"); err != nil {
+		t.Fatalf("AddFolder failed: %v", err)
+	}
+	if err := mgr.AddFolder("Modul Kuliah"); err == nil {
+		t.Fatal("Expected error adding duplicate folder, got nil")
+	}
+
+	// Add items with different folders and types
+	item1 := &LibraryItem{
+		Filename:     "modul1.pdf",
+		Path:         filepath.Join(libDir, "modul1.pdf"),
+		Size:         100,
+		Folder:       "Modul Kuliah",
+		Status:       StatusApproved,
+	}
+	_ = os.WriteFile(item1.Path, []byte("modul content"), 0644)
+	_ = mgr.AddItem(item1)
+
+	item2 := &LibraryItem{
+		Filename:     "foto.png",
+		Path:         filepath.Join(libDir, "foto.png"),
+		Size:         200,
+		Folder:       "Umum",
+		Status:       StatusApproved,
+	}
+	_ = os.WriteFile(item2.Path, []byte("png content"), 0644)
+	_ = mgr.AddItem(item2)
+
+	// Filter by folder
+	modulItems := mgr.ListApproved("", "Modul Kuliah")
+	if len(modulItems) != 1 || modulItems[0].Filename != "modul1.pdf" {
+		t.Fatalf("Expected 1 item in 'Modul Kuliah', got %d", len(modulItems))
+	}
+
+	// Clear images
+	count, freed, err := mgr.ClearItems("images")
+	if err != nil || count != 1 || freed != 200 {
+		t.Fatalf("ClearItems images failed: count=%d, freed=%d, err=%v", count, freed, err)
+	}
+
+	// Remaining items
+	remaining := mgr.ListApproved("")
+	if len(remaining) != 1 || remaining[0].Filename != "modul1.pdf" {
+		t.Fatalf("Expected only modul1.pdf to remain, got %d items", len(remaining))
+	}
+
+	// Delete folder moves items to Umum
+	if err := mgr.DeleteFolder("Modul Kuliah"); err != nil {
+		t.Fatalf("DeleteFolder failed: %v", err)
+	}
+	fetched, _ := mgr.Get(item1.ID)
+	if fetched.Folder != "Umum" {
+		t.Fatalf("Expected item folder to be reset to 'Umum', got %s", fetched.Folder)
+	}
+}
+

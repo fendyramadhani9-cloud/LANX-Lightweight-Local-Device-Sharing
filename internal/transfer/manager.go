@@ -83,17 +83,19 @@ func (m *Manager) Create(filename string, size int64, direction, deviceName, dev
 func (m *Manager) UpdateProgress(id string, loaded int64) {
 	m.mu.Lock()
 	t, ok := m.active[id]
+	var snapshot Transfer
 	if ok {
 		t.Loaded = loaded
 		t.Status = StatusTransferring
 		if t.Size > 0 {
 			t.Percentage = float64(loaded) / float64(t.Size) * 100
 		}
+		snapshot = *t
 	}
 	m.mu.Unlock()
 
 	if ok && m.onUpdate != nil {
-		m.onUpdate(t)
+		m.onUpdate(&snapshot)
 	}
 }
 
@@ -101,6 +103,7 @@ func (m *Manager) UpdateProgress(id string, loaded int64) {
 func (m *Manager) Complete(id string, downloadID string) {
 	m.mu.Lock()
 	t, ok := m.active[id]
+	var snapshot Transfer
 	if ok {
 		t.Status = StatusCompleted
 		t.Percentage = 100
@@ -108,11 +111,12 @@ func (m *Manager) Complete(id string, downloadID string) {
 		t.DownloadID = downloadID
 		m.addToHistory(t)
 		delete(m.active, id)
+		snapshot = *t
 	}
 	m.mu.Unlock()
 
 	if ok && m.onUpdate != nil {
-		m.onUpdate(t)
+		m.onUpdate(&snapshot)
 	}
 }
 
@@ -120,16 +124,18 @@ func (m *Manager) Complete(id string, downloadID string) {
 func (m *Manager) Fail(id string, reason string) {
 	m.mu.Lock()
 	t, ok := m.active[id]
+	var snapshot Transfer
 	if ok {
 		t.Status = StatusFailed
 		t.Error = reason
 		m.addToHistory(t)
 		delete(m.active, id)
+		snapshot = *t
 	}
 	m.mu.Unlock()
 
 	if ok && m.onUpdate != nil {
-		m.onUpdate(t)
+		m.onUpdate(&snapshot)
 	}
 }
 

@@ -72,15 +72,20 @@ func (h *Hub) HandleWS(w http.ResponseWriter, r *http.Request) {
 	}
 
 	client := &Client{
-		hub:  h,
-		conn: conn,
-		ip:   remoteIP,
+		hub:    h,
+		conn:   conn,
+		ip:     remoteIP,
+		sendCh: make(chan []byte, 128),
 	}
 
 	h.register(client)
 	defer h.unregister(client)
 
-	client.readPump(r.Context())
+	ctx, cancel := context.WithCancel(r.Context())
+	defer cancel()
+
+	go client.writePump(ctx)
+	client.readPump(ctx)
 }
 
 // Broadcast sends a message to all connected clients.
@@ -175,14 +180,28 @@ func (h *Hub) register(c *Client) {
 
 func (h *Hub) unregister(c *Client) {
 	h.mu.Lock()
+	if _, exists := h.clients[c]; !exists {
+		h.mu.Unlock()
+		return
+	}
 	delete(h.clients, c)
 	deviceID := c.deviceID
 	disconnectHook := h.onClientDisconnect
+
+	stillConnected := false
+	if deviceID != "" {
+		for other := range h.clients {
+			if other.deviceID == deviceID {
+				stillConnected = true
+				break
+			}
+		}
+	}
 	h.mu.Unlock()
 
 	c.conn.Close(ws.StatusNormalClosure, "")
 
-	if deviceID != "" && disconnectHook != nil {
+	if deviceID != "" && disconnectHook != nil && !stillConnected {
 		disconnectHook(deviceID)
 	}
 }
@@ -215,7 +234,7 @@ type Client struct {
 	conn     *ws.Conn
 	deviceID string
 	ip       string
-	mu       sync.Mutex
+	sendCh   chan []byte
 }
 
 func (c *Client) readPump(ctx context.Context) {
@@ -232,15 +251,31 @@ func (c *Client) readPump(ctx context.Context) {
 	}
 }
 
+func (c *Client) writePump(ctx context.Context) {
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case data, ok := <-c.sendCh:
+			if !ok {
+				return
+			}
+			writeCtx, cancel := context.WithTimeout(ctx, 3*time.Second)
+			err := c.conn.Write(writeCtx, ws.MessageText, data)
+			cancel()
+			if err != nil {
+				c.conn.Close(ws.StatusNormalClosure, "write error")
+				return
+			}
+		}
+	}
+}
+
 func (c *Client) send(data []byte) {
-	c.mu.Lock()
-	defer c.mu.Unlock()
-
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancel()
-
-	if err := c.conn.Write(ctx, ws.MessageText, data); err != nil {
-		// Client disconnected — will be cleaned up by readPump
+	select {
+	case c.sendCh <- data:
+	default:
+		// Queue full (slow client), drop message to prevent blocking the hub
 	}
 }
 

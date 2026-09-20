@@ -111,6 +111,7 @@ func TestDeviceAPIEndpoints(t *testing.T) {
 	})
 
 	mux := http.NewServeMux()
+	r.SetAdminValidator(func(token string) bool { return token == "admin" })
 	r.RegisterRoutes(mux)
 
 	t.Run("GET /api/devices", func(t *testing.T) {
@@ -134,6 +135,7 @@ func TestDeviceAPIEndpoints(t *testing.T) {
 			"platform": "tablet",
 		})
 		req := httptest.NewRequest("PUT", "/api/devices/dev-1", bytes.NewReader(payload))
+		req.Header.Set("X-Admin-Token", "admin")
 		w := httptest.NewRecorder()
 		mux.ServeHTTP(w, req)
 
@@ -169,6 +171,7 @@ func TestDeviceAPIEndpoints(t *testing.T) {
 
 	t.Run("DELETE /api/devices/{id}", func(t *testing.T) {
 		req := httptest.NewRequest("DELETE", "/api/devices/dev-2", nil)
+		req.Header.Set("X-Admin-Token", "admin")
 		w := httptest.NewRecorder()
 		mux.ServeHTTP(w, req)
 

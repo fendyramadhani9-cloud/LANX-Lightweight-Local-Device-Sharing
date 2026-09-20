@@ -125,7 +125,7 @@ func Load(dataDir string) (*Config, error) {
 	return cfg, nil
 }
 
-// Save writes the current config to disk.
+// Save writes the current config to disk atomically.
 func (c *Config) Save() error {
 	c.mu.RLock()
 	defer c.mu.RUnlock()
@@ -134,7 +134,17 @@ func (c *Config) Save() error {
 	if err != nil {
 		return fmt.Errorf("marshal config: %w", err)
 	}
-	return os.WriteFile(c.filePath, data, 0o644)
+
+	dir := filepath.Dir(c.filePath)
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		return err
+	}
+
+	tmpFile := fmt.Sprintf("%s.tmp", c.filePath)
+	if err := os.WriteFile(tmpFile, data, 0o644); err != nil {
+		return err
+	}
+	return os.Rename(tmpFile, c.filePath)
 }
 
 // Update modifies config fields under a lock and saves.

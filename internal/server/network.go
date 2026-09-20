@@ -150,7 +150,3 @@ func GetLocalIP() string {
 
 	return "127.0.0.1"
 }
-
-func getLocalIP() string {
-	return GetLocalIP()
-}

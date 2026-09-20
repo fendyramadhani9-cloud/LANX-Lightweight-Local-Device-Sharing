@@ -25,6 +25,7 @@ type LibraryItem struct {
 	Path          string `json:"path"`
 	Size          int64  `json:"size"`
 	Description   string `json:"description,omitempty"`
+	Folder        string `json:"folder,omitempty"`
 	UploaderName  string `json:"uploader_name"`
 	UploaderID    string `json:"uploader_id"`
 	DeleteToken   string `json:"delete_token,omitempty"`
@@ -34,11 +35,18 @@ type LibraryItem struct {
 	DownloadCount int    `json:"download_count"`
 }
 
+// LibraryStorage defines disk serialization structure for backward compatibility.
+type LibraryStorage struct {
+	Folders []string       `json:"folders,omitempty"`
+	Items   []*LibraryItem `json:"items"`
+}
+
 // Manager manages library items and persists metadata to JSON.
 type Manager struct {
 	mu          sync.RWMutex
 	storagePath string
 	libraryDir  string
+	folders     []string
 	items       map[string]*LibraryItem
 	onEvent     func(eventType string, data any)
 }
@@ -109,6 +117,9 @@ func (m *Manager) AddItem(item *LibraryItem) error {
 	if item.CreatedAt == 0 {
 		item.CreatedAt = time.Now().UnixMilli()
 	}
+	if strings.TrimSpace(item.Folder) == "" {
+		item.Folder = "Umum"
+	}
 
 	// Cap maximum expiration to 1 year (365 days) from creation
 	maxExpiry := item.CreatedAt + (365 * 24 * int64(time.Hour/time.Millisecond))
@@ -122,9 +133,10 @@ func (m *Manager) AddItem(item *LibraryItem) error {
 	}
 
 	if m.onEvent != nil {
-		if item.Status == StatusApproved {
+		switch item.Status {
+		case StatusApproved:
 			m.onEvent("library_updated", map[string]any{"action": "added", "item": item})
-		} else if item.Status == StatusPendingApproval {
+		case StatusPendingApproval:
 			m.onEvent("library_approval_request", map[string]any{"action": "pending", "item": item})
 		}
 	}
@@ -140,23 +152,41 @@ func (m *Manager) Get(id string) (*LibraryItem, bool) {
 	return it, ok
 }
 
-// ListApproved returns all approved items, optionally filtered by search query.
-func (m *Manager) ListApproved(query string) []*LibraryItem {
+// ListApproved returns all approved items, optionally filtered by search query and folder.
+func (m *Manager) ListApproved(query string, folder ...string) []*LibraryItem {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
 
 	q := strings.ToLower(strings.TrimSpace(query))
+	fFilter := ""
+	if len(folder) > 0 {
+		fFilter = strings.TrimSpace(folder[0])
+		if fFilter == "all" {
+			fFilter = ""
+		}
+	}
+
 	var result []*LibraryItem
 
 	for _, it := range m.items {
 		if it.Status != StatusApproved {
 			continue
 		}
+		if fFilter != "" {
+			itemFolder := it.Folder
+			if itemFolder == "" {
+				itemFolder = "Umum"
+			}
+			if !strings.EqualFold(itemFolder, fFilter) {
+				continue
+			}
+		}
 		if q != "" {
 			nameMatch := strings.Contains(strings.ToLower(it.Filename), q)
 			descMatch := strings.Contains(strings.ToLower(it.Description), q)
 			uploaderMatch := strings.Contains(strings.ToLower(it.UploaderName), q)
-			if !nameMatch && !descMatch && !uploaderMatch {
+			folderMatch := strings.Contains(strings.ToLower(it.Folder), q)
+			if !nameMatch && !descMatch && !uploaderMatch && !folderMatch {
 				continue
 			}
 		}
@@ -267,6 +297,136 @@ func (m *Manager) IncrementDownload(id string) {
 }
 
 // GetTotalStorageUsed returns total bytes used by all library files and total count.
+// GetFolders returns all available folder names.
+func (m *Manager) GetFolders() []string {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+
+	if len(m.folders) == 0 {
+		return []string{"Umum"}
+	}
+	result := make([]string, len(m.folders))
+	copy(result, m.folders)
+	return result
+}
+
+// AddFolder creates a new folder/category.
+func (m *Manager) AddFolder(name string) error {
+	trimmed := strings.TrimSpace(name)
+	if trimmed == "" {
+		return fmt.Errorf("nama folder tidak boleh kosong")
+	}
+	if len(trimmed) > 64 {
+		return fmt.Errorf("nama folder maksimal 64 karakter")
+	}
+	if strings.ContainsAny(trimmed, "/\\:*?\"<>|") || strings.Contains(trimmed, "..") {
+		return fmt.Errorf("nama folder mengandung karakter tidak valid")
+	}
+
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	for _, f := range m.folders {
+		if strings.EqualFold(f, trimmed) {
+			return fmt.Errorf("folder dengan nama tersebut sudah ada")
+		}
+	}
+
+	m.folders = append(m.folders, trimmed)
+	if err := m.saveToDiskLocked(); err != nil {
+		return err
+	}
+
+	if m.onEvent != nil {
+		m.onEvent("library_updated", map[string]any{"action": "folder_added", "folder": trimmed})
+	}
+	return nil
+}
+
+// DeleteFolder removes a folder and moves its items to "Umum".
+func (m *Manager) DeleteFolder(name string) error {
+	trimmed := strings.TrimSpace(name)
+	if strings.EqualFold(trimmed, "Umum") {
+		return fmt.Errorf("folder utama 'Umum' tidak dapat dihapus")
+	}
+
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	found := false
+	newFolders := make([]string, 0, len(m.folders))
+	for _, f := range m.folders {
+		if strings.EqualFold(f, trimmed) {
+			found = true
+			continue
+		}
+		newFolders = append(newFolders, f)
+	}
+
+	if !found {
+		return fmt.Errorf("folder tidak ditemukan")
+	}
+
+	m.folders = newFolders
+	for _, it := range m.items {
+		if strings.EqualFold(it.Folder, trimmed) {
+			it.Folder = "Umum"
+		}
+	}
+
+	if err := m.saveToDiskLocked(); err != nil {
+		return err
+	}
+
+	if m.onEvent != nil {
+		m.onEvent("library_updated", map[string]any{"action": "folder_deleted", "folder": trimmed})
+	}
+	return nil
+}
+
+// ClearItems removes all approved items or all image items (Admin only).
+func (m *Manager) ClearItems(target string) (int, int64, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	imageExts := map[string]bool{
+		".jpg": true, ".jpeg": true, ".png": true, ".gif": true,
+		".webp": true, ".svg": true, ".bmp": true, ".ico": true,
+	}
+
+	var toDelete []*LibraryItem
+	for _, it := range m.items {
+		if it.Status != StatusApproved {
+			continue
+		}
+		switch target {
+		case "images":
+			ext := strings.ToLower(filepath.Ext(it.Filename))
+			if imageExts[ext] {
+				toDelete = append(toDelete, it)
+			}
+		case "all":
+			toDelete = append(toDelete, it)
+		}
+	}
+
+	var freedBytes int64
+	for _, it := range toDelete {
+		delete(m.items, it.ID)
+		_ = os.Remove(it.Path)
+		freedBytes += it.Size
+	}
+
+	if len(toDelete) > 0 {
+		_ = m.saveToDiskLocked()
+		if m.onEvent != nil {
+			m.onEvent("library_updated", map[string]any{"action": "cleared", "target": target, "count": len(toDelete)})
+		}
+	}
+
+	return len(toDelete), freedBytes, nil
+}
+
 func (m *Manager) GetTotalStorageUsed() (int64, int) {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
@@ -291,18 +451,36 @@ func (m *Manager) loadFromDisk() error {
 	data, err := os.ReadFile(m.storagePath)
 	if err != nil {
 		if os.IsNotExist(err) {
+			m.folders = []string{"Umum"}
 			return nil
 		}
 		return err
 	}
 
-	var saved []*LibraryItem
-	if err := json.Unmarshal(data, &saved); err != nil {
-		return err
+	var storage LibraryStorage
+	if err := json.Unmarshal(data, &storage); err == nil && (len(storage.Items) > 0 || len(storage.Folders) > 0) {
+		m.folders = storage.Folders
+		for _, it := range storage.Items {
+			if it.Folder == "" {
+				it.Folder = "Umum"
+			}
+			m.items[it.ID] = it
+		}
+	} else {
+		// Fallback for legacy format: []LibraryItem
+		var legacy []*LibraryItem
+		if errLegacy := json.Unmarshal(data, &legacy); errLegacy == nil {
+			for _, it := range legacy {
+				if it.Folder == "" {
+					it.Folder = "Umum"
+				}
+				m.items[it.ID] = it
+			}
+		}
 	}
 
-	for _, it := range saved {
-		m.items[it.ID] = it
+	if len(m.folders) == 0 {
+		m.folders = []string{"Umum"}
 	}
 
 	return nil
@@ -318,7 +496,16 @@ func (m *Manager) saveToDiskLocked() error {
 		list = append(list, it)
 	}
 
-	data, err := json.MarshalIndent(list, "", "  ")
+	if len(m.folders) == 0 {
+		m.folders = []string{"Umum"}
+	}
+
+	storage := LibraryStorage{
+		Folders: m.folders,
+		Items:   list,
+	}
+
+	data, err := json.MarshalIndent(storage, "", "  ")
 	if err != nil {
 		return err
 	}

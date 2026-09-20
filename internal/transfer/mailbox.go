@@ -165,14 +165,23 @@ func (mb *Mailbox) save() {
 		return
 	}
 	mb.mu.RLock()
-	data, err := json.MarshalIndent(mb.items, "", "  ")
+	itemsCopy := make([]MailboxItem, len(mb.items))
+	for i, it := range mb.items {
+		itemsCopy[i] = *it
+	}
 	mb.mu.RUnlock()
+
+	data, err := json.MarshalIndent(itemsCopy, "", "  ")
 	if err != nil {
 		return
 	}
 
-	_ = os.MkdirAll(filepath.Dir(mb.filePath), 0755)
-	_ = os.WriteFile(mb.filePath, data, 0644)
+	dir := filepath.Dir(mb.filePath)
+	_ = os.MkdirAll(dir, 0755)
+	tmpFile := mb.filePath + ".tmp"
+	if err := os.WriteFile(tmpFile, data, 0644); err == nil {
+		_ = os.Rename(tmpFile, mb.filePath)
+	}
 }
 
 func generateMailboxID() string {

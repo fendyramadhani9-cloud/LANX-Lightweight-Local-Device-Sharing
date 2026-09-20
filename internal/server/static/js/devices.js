@@ -11,7 +11,8 @@ const Devices = {
 
     init() {
         // Restore saved mode if exists, default to 'all'
-        const savedMode = localStorage.getItem('lanx_send_mode');
+        let savedMode = null;
+        try { savedMode = localStorage.getItem('lanx_send_mode'); } catch (e) {}
         if (savedMode === 'single' || savedMode === 'all') {
             this.sendMode = savedMode;
             if (this.sendMode === 'all') {
@@ -71,14 +72,35 @@ const Devices = {
                 }
 
                 try {
-                    const res = await fetch(`/api/devices/${encodeURIComponent(id)}`, {
-                        method: 'PUT',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ name: newName }),
-                    });
+                    let res;
+                    if (id === LANX.clientId && !LANX.isAdmin) {
+                        res = await fetch('/api/device/profile', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                                id: id,
+                                name: newName,
+                                platform: LANX.platform || 'browser',
+                            }),
+                        });
+                    } else {
+                        res = await fetch(`/api/devices/${encodeURIComponent(id)}`, {
+                            method: 'PUT',
+                            headers: {
+                                'Content-Type': 'application/json',
+                                'X-Admin-Token': LANX.adminToken || '',
+                            },
+                            body: JSON.stringify({ name: newName }),
+                        });
+                    }
 
                     if (res.ok) {
                         const updated = await res.json();
+                        if (id === LANX.clientId) {
+                            LANX.clientName = newName;
+                            localStorage.setItem('lanx_client_name', newName);
+                            if (LANX.updateHeaderProfileBadge) LANX.updateHeaderProfileBadge();
+                        }
                         this.addOrUpdateDevice(updated, updated.online);
                         closeIt();
                         LANX.showToast(`Nama perangkat diubah menjadi "${newName}"`, 'success');
@@ -88,6 +110,16 @@ const Devices = {
                     }
                 } catch (e) {
                     LANX.showToast('Gagal mengubah nama perangkat', 'error');
+                }
+            });
+        }
+
+        const nameInput = document.getElementById('rename-device-input');
+        if (nameInput) {
+            nameInput.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter') {
+                    e.preventDefault();
+                    if (btnSave) btnSave.click();
                 }
             });
         }
@@ -156,9 +188,9 @@ const Devices = {
         const visible = this.getVisibleDevices().filter(d => d.online !== false);
 
         if (this.sendMode === 'all' || this.selectedDevice === 'all') {
-            const countText = visible.length > 0 ? ` (${visible.length} perangkat online)` : '';
-            if (dropTarget) dropTarget.textContent = `Semua Perangkat (All Devices)${countText}`;
-            if (descTarget) descTarget.innerHTML = `Target: <strong>Semua Perangkat (Siaran Massal)${countText}</strong>`;
+            const countText = visible.length > 0 ? ` (${visible.length} online)` : '';
+            if (dropTarget) dropTarget.textContent = `Semua Perangkat${countText}`;
+            if (descTarget) descTarget.innerHTML = `Target: <strong>Semua Perangkat${countText}</strong>`;
         } else if (this.selectedDevice) {
             const dev = this.getDeviceById(this.selectedDevice);
             const isOnline = dev && dev.online !== false;
@@ -167,12 +199,12 @@ const Devices = {
                 if (dropTarget) dropTarget.textContent = `${name}`;
                 if (descTarget) descTarget.innerHTML = `Target: <strong>${LANX.escapeHtml(name)}</strong>`;
             } else {
-                if (dropTarget) dropTarget.textContent = `${name} (Kotak Masuk Server)`;
-                if (descTarget) descTarget.innerHTML = `Target: <strong>${LANX.escapeHtml(name)}</strong> <span class="offline-target-note">(Offline — Otomatis masuk saat online)</span>`;
+                if (dropTarget) dropTarget.textContent = `${name} (Server)`;
+                if (descTarget) descTarget.innerHTML = `Target: <strong>${LANX.escapeHtml(name)}</strong> <span class="offline-target-note">(Offline — Masuk saat online)</span>`;
             }
         } else {
-            if (dropTarget) dropTarget.textContent = 'Pilih perangkat tujuan di bawah';
-            if (descTarget) descTarget.innerHTML = `Target: <em>Belum dipilih (Klik perangkat di bawah)</em>`;
+            if (dropTarget) dropTarget.textContent = 'Pilih perangkat tujuan';
+            if (descTarget) descTarget.innerHTML = `Target: <em>Belum dipilih</em>`;
         }
     },
 
@@ -267,7 +299,16 @@ const Devices = {
                 const cur = btn.dataset.currentRole;
                 const newRole = cur === 'admin' ? 'user' : 'admin';
                 const actionText = newRole === 'admin' ? 'jadikan Admin' : 'kembalikan ke User biasa';
-                if (!confirm(`Apakah Anda yakin ingin ${actionText} perangkat ini?`)) return;
+                
+                const ok = (typeof LANX !== 'undefined' && LANX.confirm)
+                    ? await LANX.confirm({
+                        title: 'Ubah Hak Akses Perangkat',
+                        message: `Apakah Anda yakin ingin ${actionText} perangkat ini?`,
+                        confirmText: newRole === 'admin' ? 'Jadikan Admin' : 'Jadikan User',
+                        danger: false,
+                    })
+                    : confirm(`Apakah Anda yakin ingin ${actionText} perangkat ini?`);
+                if (!ok) return;
 
                 try {
                     const res = await fetch(`/api/devices/${encodeURIComponent(id)}/role`, {
@@ -302,9 +343,11 @@ const Devices = {
         if (copyBtn && !copyBtn.dataset.bound) {
             copyBtn.dataset.bound = 'true';
             copyBtn.addEventListener('click', () => {
-                navigator.clipboard.writeText(window.location.origin)
-                    .then(() => LANX.showToast('Tautan disalin ke papan klip', 'success'))
-                    .catch(() => LANX.showToast(window.location.origin, 'info'));
+                if (typeof LANX !== 'undefined' && LANX.copyToClipboard) {
+                    LANX.copyToClipboard(window.location.origin, 'Tautan disalin ke papan klip');
+                } else if (navigator.clipboard) {
+                    navigator.clipboard.writeText(window.location.origin);
+                }
             });
         }
         const pairBtn = document.getElementById('btn-empty-pair');
@@ -322,6 +365,7 @@ const Devices = {
         const isSelected = this.sendMode === 'single' && this.selectedDevice === device.id;
         const isAdminDevice = device.role === 'admin' || device.is_host;
         const canPromote = LANX.isAdmin && !device.is_host && device.id !== LANX.clientId;
+        const canRename = LANX.isAdmin || device.id === LANX.clientId;
 
         return `
             <div class="device-card ${isSelected ? 'selected' : ''} ${!isOnline ? 'offline-device' : ''}" data-device-id="${device.id}">
@@ -345,12 +389,14 @@ const Devices = {
                         </div>
                     ` : ''}
                 </div>
+                ${canRename ? `
                 <button class="device-card-rename-btn" data-rename-id="${device.id}" title="Ubah nama / alias perangkat ini">
                     <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                         <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
                         <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
                     </svg>
                 </button>
+                ` : ''}
             </div>
         `;
     },
@@ -408,7 +454,7 @@ const Devices = {
 
         selects.forEach(select => {
             const options = [
-                `<option value="all" ${this.sendMode === 'all' || this.selectedDevice === 'all' ? 'selected' : ''}>Semua Perangkat (All Devices)</option>`,
+                `<option value="all" ${this.sendMode === 'all' || this.selectedDevice === 'all' ? 'selected' : ''}>Semua Perangkat</option>`,
                 '<option disabled>──────────</option>'
             ];
 
@@ -478,7 +524,7 @@ const Devices = {
 
     getDeviceById(id) {
         if (!id || id === 'all') {
-            return { id: 'all', name: 'Semua Perangkat (All Devices)' };
+            return { id: 'all', name: 'Semua Perangkat' };
         }
         const found = (this.devices || []).find(d => d.id === id);
         if (found) return found;
@@ -487,7 +533,7 @@ const Devices = {
 
     getSelectedDevice() {
         if (this.sendMode === 'all' || this.selectedDevice === 'all') {
-            return { id: 'all', name: 'Semua Perangkat (All Devices)' };
+            return { id: 'all', name: 'Semua Perangkat' };
         }
         if (this.selectedDevice) {
             return this.getDeviceById(this.selectedDevice);
@@ -500,7 +546,7 @@ const Devices = {
             this.selectedDevice = chosen.id;
             return chosen;
         }
-        return { id: 'all', name: 'Semua Perangkat (All Devices)' };
+        return { id: 'all', name: 'Semua Perangkat' };
     },
 
     handleEvent(msg) {

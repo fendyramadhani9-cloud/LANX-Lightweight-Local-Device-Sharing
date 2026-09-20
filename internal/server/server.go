@@ -20,11 +20,12 @@ var webFS embed.FS
 
 // Server is the main LANX HTTP server.
 type Server struct {
-	cfg     *config.Config
-	mux     *http.ServeMux
-	srv     *http.Server
-	logger  *log.Logger
-	devices *device.Registry
+	cfg               *config.Config
+	mux               *http.ServeMux
+	srv               *http.Server
+	logger            *log.Logger
+	devices           *device.Registry
+	onSettingsUpdated func(cfg *config.Config)
 }
 
 // New creates a new Server instance.
@@ -41,6 +42,11 @@ func New(cfg *config.Config, logger *log.Logger) *Server {
 // SetDeviceRegistry sets the device registry reference.
 func (s *Server) SetDeviceRegistry(r *device.Registry) {
 	s.devices = r
+}
+
+// SetOnSettingsUpdated sets callback when server settings are updated.
+func (s *Server) SetOnSettingsUpdated(fn func(cfg *config.Config)) {
+	s.onSettingsUpdated = fn
 }
 
 // Start begins listening on the configured port.

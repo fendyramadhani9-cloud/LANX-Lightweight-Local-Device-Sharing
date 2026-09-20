@@ -14,7 +14,14 @@ const LANX = {
     platform: 'desktop',
     autoDownload: false,
     isAdmin: false,
-    adminToken: localStorage.getItem('lanx_admin_token') || null,
+    adminToken: (() => {
+        try {
+            const t = localStorage.getItem('lanx_admin_token');
+            return (t && t !== 'undefined' && t !== 'null') ? t : null;
+        } catch (e) {
+            return null;
+        }
+    })(),
 
     /** Initialize the application */
     async init() {
@@ -55,6 +62,9 @@ const LANX = {
         if (typeof Transfer !== 'undefined') Transfer.init();
         if (typeof Clipboard !== 'undefined') Clipboard.init();
         if (typeof Library !== 'undefined') Library.init();
+
+        // Check for incoming QR pairing token in URL
+        this.checkPairingToken();
     },
 
     initClientIdentity() {
@@ -149,18 +159,38 @@ const LANX = {
             targetPanel.classList.add('active');
         }
 
-        // 4. Update Workspace Header Title & Subtitle
+        // 4. Update Workspace Header Title, Subtitle, & Controls
         const titles = {
             files: { title: 'Files', subtitle: 'Kirim dan kelola berkas transfer lokal' },
-            recent: { title: 'Recent Transfers', subtitle: 'Riwayat pengiriman dan penerimaan berkas' },
-            library: { title: 'Pustaka Bersama (Shared Library)', subtitle: 'Pusat materi, modul praktikum, dan arsip lokal' },
-            text: { title: 'Text & Catatan', subtitle: 'Berbagi catatan, tautan, dan teks instan' },
-            devices: { title: 'Perangkat Sekitar (Devices)', subtitle: 'Radar perangkat yang terhubung dalam jaringan Wi-Fi / LAN' },
+            recent: { title: 'Riwayat Transfer', subtitle: 'Riwayat pengiriman dan penerimaan berkas' },
+            library: { title: 'Pustaka Bersama', subtitle: 'Pusat materi, modul, dan arsip berkas bersama' },
+            text: { title: 'Catatan & Teks', subtitle: 'Berbagi catatan, tautan, dan teks instan' },
+            devices: { title: 'Perangkat Terhubung', subtitle: 'Perangkat yang terhubung dalam jaringan lokal' },
         };
         const titleEl = document.getElementById('workspace-title');
         const subtitleEl = document.getElementById('workspace-subtitle');
         if (titleEl && titles[tabId]) titleEl.textContent = titles[tabId].title;
         if (subtitleEl && titles[tabId]) subtitleEl.textContent = titles[tabId].subtitle;
+
+        // Contextual Header Actions
+        const btnDesktopUpload = document.getElementById('btn-desktop-upload');
+        const viewModeToggle = document.getElementById('view-mode-toggle');
+        if (btnDesktopUpload) {
+            if (tabId === 'files') {
+                btnDesktopUpload.style.display = 'inline-flex';
+                const span = btnDesktopUpload.querySelector('span');
+                if (span) span.textContent = '+ Upload File';
+            } else if (tabId === 'library') {
+                btnDesktopUpload.style.display = 'inline-flex';
+                const span = btnDesktopUpload.querySelector('span');
+                if (span) span.textContent = '+ Upload ke Pustaka';
+            } else {
+                btnDesktopUpload.style.display = 'none';
+            }
+        }
+        if (viewModeToggle) {
+            viewModeToggle.style.display = (tabId === 'files' || tabId === 'library') ? 'inline-flex' : 'none';
+        }
 
         // 5. Trigger sub-module updates on tab switch
         if (tabId === 'library' && typeof Library !== 'undefined') {
@@ -181,6 +211,9 @@ const LANX = {
             searchInput.value = '';
             document.getElementById('btn-clear-search')?.style.setProperty('display', 'none');
             this.applyGlobalSearch('');
+        } else if (typeof Library !== 'undefined' && Library.searchQuery) {
+            Library.searchQuery = '';
+            Library.render();
         }
     },
 
@@ -217,6 +250,26 @@ const LANX = {
         const mobileFab = document.getElementById('mobile-fab');
         if (mobileFab) {
             mobileFab.addEventListener('click', () => {
+                const sheetHeaderTitle = document.querySelector('#mobile-upload-sheet .sheet-header h3');
+                const sheetHeaderDesc = document.querySelector('#mobile-upload-sheet .sheet-header p');
+                const mPickFileText = document.querySelector('#m-pick-files .sheet-btn-text strong');
+                const mPickFileSub = document.querySelector('#m-pick-files .sheet-btn-text span');
+                const mPickFolder = document.getElementById('m-pick-folder');
+
+                if (this.currentTab === 'library') {
+                    if (sheetHeaderTitle) sheetHeaderTitle.textContent = 'Upload ke Pustaka Bersama';
+                    if (sheetHeaderDesc) sheetHeaderDesc.textContent = 'Simpan berkas ke server lokal agar dapat diunduh semua orang';
+                    if (mPickFileText) mPickFileText.textContent = 'Pilih Berkas Pustaka';
+                    if (mPickFileSub) mPickFileSub.textContent = 'Dokumen, PDF, modul, materi, foto, atau video';
+                    if (mPickFolder) mPickFolder.style.display = 'none';
+                } else {
+                    if (sheetHeaderTitle) sheetHeaderTitle.textContent = 'Upload & Kirim Berkas';
+                    if (sheetHeaderDesc) sheetHeaderDesc.textContent = 'Pilih berkas untuk dibagikan ke jaringan lokal';
+                    if (mPickFileText) mPickFileText.textContent = 'Pilih Berkas';
+                    if (mPickFileSub) mPickFileSub.textContent = 'Dokumen, PDF, musik, video dari penyimpanan';
+                    if (mPickFolder) mPickFolder.style.display = 'flex';
+                }
+
                 this.openBottomSheet('upload-sheet-overlay');
             });
         }
@@ -226,7 +279,11 @@ const LANX = {
         if (btnPickFiles) {
             btnPickFiles.addEventListener('click', () => {
                 this.closeBottomSheet('upload-sheet-overlay');
-                document.getElementById('file-input')?.click();
+                if (this.currentTab === 'library') {
+                    document.getElementById('library-file-input')?.click();
+                } else {
+                    document.getElementById('file-input')?.click();
+                }
             });
         }
 
@@ -333,7 +390,11 @@ const LANX = {
                 if (this.currentFileActionItem) {
                     const item = this.currentFileActionItem;
                     this.closeBottomSheet('action-sheet-overlay');
-                    this.openMediaPreview(item.name, item.id, item.size || 0, item.sender || '', item.description || '');
+                    if (item.isLibrary && typeof Library !== 'undefined') {
+                        Library.openLibraryPreview(item.name, item.id, item.size || 0, item.sender || '', item.description || '');
+                    } else {
+                        this.openMediaPreview(item.name, item.id, item.size || 0, item.sender || '', item.description || '');
+                    }
                 }
             });
         }
@@ -345,9 +406,7 @@ const LANX = {
                     const fullUrl = this.currentFileActionItem.downloadUrl
                         ? window.location.origin + this.currentFileActionItem.downloadUrl
                         : window.location.origin;
-                    navigator.clipboard.writeText(fullUrl)
-                        .then(() => this.showToast('Tautan unduhan berhasil disalin', 'success'))
-                        .catch(() => this.showToast(fullUrl, 'info'));
+                    this.copyToClipboard(fullUrl, 'Tautan unduhan berhasil disalin');
                 }
                 this.closeBottomSheet('action-sheet-overlay');
             });
@@ -362,6 +421,10 @@ const LANX = {
                     if (item.isLibrary && typeof Library !== 'undefined') {
                         Library.deleteItem(item.id, item.name);
                     } else {
+                        // Remove item from DOM transfer list if present
+                        if (item.id) {
+                            document.querySelectorAll(`.transfer-item[data-id="${item.id}"]`).forEach(el => el.remove());
+                        }
                         this.showToast(`Berkas ${item.name} dihapus dari daftar tampilan`, 'info');
                     }
                 }
@@ -377,10 +440,36 @@ const LANX = {
             });
         });
 
-        // Close on Escape key
+        // Close modals, sheets, and preview on Escape key
         document.addEventListener('keydown', (e) => {
             if (e.key === 'Escape') {
+                // 1. If confirm modal is active, trigger cancel
+                const confirmModal = document.getElementById('app-confirm-modal');
+                if (confirmModal && confirmModal.style.display !== 'none') {
+                    const cancelBtn = document.getElementById('btn-cancel-app-confirm');
+                    if (cancelBtn) cancelBtn.click();
+                    return;
+                }
+
+                // 2. If media preview is active, close it
+                const previewModal = document.getElementById('media-preview-modal');
+                if (previewModal && previewModal.style.display !== 'none') {
+                    this.closeMediaPreview();
+                    return;
+                }
+
+                // 3. Remove device picker overlays if any
+                document.querySelectorAll('.device-picker-overlay').forEach(o => o.remove());
+
+                // 4. Close bottom sheets
                 document.querySelectorAll('.bottom-sheet-overlay').forEach(o => o.style.display = 'none');
+
+                // 5. Close any open standard modals
+                document.querySelectorAll('.modal-overlay').forEach(m => {
+                    if (m.style.display !== 'none') {
+                        m.style.display = 'none';
+                    }
+                });
             }
         });
 
@@ -388,7 +477,11 @@ const LANX = {
         const btnDesktopUpload = document.getElementById('btn-desktop-upload');
         if (btnDesktopUpload) {
             btnDesktopUpload.addEventListener('click', () => {
-                document.getElementById('file-input')?.click();
+                if (this.currentTab === 'library') {
+                    document.getElementById('library-file-input')?.click();
+                } else {
+                    document.getElementById('file-input')?.click();
+                }
             });
         }
 
@@ -465,6 +558,13 @@ const LANX = {
             btnPreview.style.display = canPreview ? 'flex' : 'none';
         }
 
+        // Hide delete button if item is library file that cannot be deleted by current user
+        const btnDelete = document.getElementById('sheet-act-delete');
+        if (btnDelete) {
+            const canDelete = item.isLibrary ? !!item.canDelete : true;
+            btnDelete.style.display = canDelete ? 'flex' : 'none';
+        }
+
         this.openBottomSheet('action-sheet-overlay');
     },
 
@@ -537,11 +637,11 @@ const LANX = {
         try {
             const res = await fetch('/api/settings');
             this.settings = await res.json();
-            this.applyTheme(this.settings.theme || 'light');
+            this.applyTheme(this.settings.theme || 'dark');
         } catch (e) {
             console.error('Failed to load settings:', e);
             // Apply saved theme from localStorage as fallback
-            const saved = localStorage.getItem('lanx-theme') || 'light';
+            const saved = localStorage.getItem('lanx-theme') || 'dark';
             this.applyTheme(saved);
         }
     },
@@ -590,7 +690,7 @@ const LANX = {
 
     async initAdmin() {
         this.setupAdmin();
-        if (this.adminToken) {
+        if (this.adminToken && this.adminToken !== 'undefined' && this.adminToken !== 'null') {
             try {
                 const res = await fetch('/api/admin/config', {
                     headers: { 'X-Admin-Token': this.adminToken },
@@ -599,18 +699,22 @@ const LANX = {
                     this.setAdminActive(true);
                 } else {
                     this.setAdminActive(false);
-                    localStorage.removeItem('lanx_admin_token');
-                    this.adminToken = null;
                 }
             } catch (e) {
                 // If offline, preserve state if token was already saved
                 this.setAdminActive(true);
             }
+        } else {
+            this.setAdminActive(false);
         }
     },
 
     setAdminActive(active) {
-        this.isAdmin = active;
+        this.isAdmin = !!active;
+        if (!active) {
+            this.adminToken = null;
+            localStorage.removeItem('lanx_admin_token');
+        }
         const btnAdmin = document.getElementById('btn-admin-mode');
         const adminGroup = document.getElementById('admin-settings-group');
         if (btnAdmin) {
@@ -624,6 +728,9 @@ const LANX = {
         }
         if (adminGroup) {
             adminGroup.style.display = active ? 'block' : 'none';
+        }
+        if (typeof Library !== 'undefined' && Library.updateAdminActionsVisibility) {
+            Library.updateAdminActionsVisibility(active);
         }
     },
 
@@ -681,14 +788,16 @@ const LANX = {
 
                 if (res.ok) {
                     const data = await res.json();
-                    this.adminToken = data.token;
-                    localStorage.setItem('lanx_admin_token', data.token);
+                    const token = data.token || data.admin_token || pin;
+                    this.adminToken = token;
+                    localStorage.setItem('lanx_admin_token', token);
                     this.setAdminActive(true);
                     closeAdminModal();
                     this.showToast('Berhasil masuk ke Mode Admin!', 'success');
 
                     if (typeof Library !== 'undefined') {
                         Library.loadPending();
+                        Library.renderFolders();
                         Library.render();
                     }
                     if (typeof Devices !== 'undefined') {
@@ -726,9 +835,22 @@ const LANX = {
         const btnCleanStorage = document.getElementById('btn-clean-server-storage');
         if (btnCleanStorage) {
             btnCleanStorage.addEventListener('click', async () => {
-                if (!confirm('Hapus semua berkas sementara yang tersimpan di server sekarang?')) return;
+                if (!this.isAdmin || !this.adminToken) {
+                    this.showToast('Hanya Admin yang bisa membersihkan penyimpanan server', 'error');
+                    return;
+                }
+                const ok = await this.confirm({
+                    title: 'Bersihkan Penyimpanan Server',
+                    message: 'Hapus semua berkas sementara yang tersimpan di server sekarang? Tindakan ini tidak dapat dibatalkan.',
+                    confirmText: 'Hapus Berkas Sementara',
+                    danger: true,
+                });
+                if (!ok) return;
                 try {
-                    const res = await fetch('/api/storage/clean', { method: 'POST' });
+                    const res = await fetch('/api/storage/clean', {
+                        method: 'POST',
+                        headers: { 'X-Admin-Token': this.adminToken },
+                    });
                     if (res.ok) {
                         const data = await res.json();
                         this.showToast(`Penyimpanan server dibersihkan (${data.deleted_count} berkas)`, 'success');
@@ -822,7 +944,7 @@ const LANX = {
         this.loadStorageStats();
 
         // Theme radios
-        const theme = this.settings?.theme || localStorage.getItem('lanx-theme') || 'light';
+        const theme = this.settings?.theme || localStorage.getItem('lanx-theme') || 'dark';
         const radio = document.getElementById(`theme-${theme}`);
         if (radio) radio.checked = true;
 
@@ -834,7 +956,13 @@ const LANX = {
         const serverName = document.getElementById('setting-admin-server-name')?.value.trim();
         const pairing = document.getElementById('setting-pairing').checked;
         const autoDelete = document.getElementById('setting-auto-delete')?.checked ?? true;
+        const autoDownloadChecked = document.getElementById('setting-auto-download')?.checked ?? false;
         const theme = document.querySelector('input[name="theme"]:checked')?.value || 'light';
+
+        // Persist auto-download preference from settings modal
+        this.autoDownload = autoDownloadChecked;
+        localStorage.setItem('lanx_auto_download', autoDownloadChecked ? 'true' : 'false');
+        this.updateAutoDownloadUI();
 
         // 1. If user changed their own device name, update local state, sync profile to server, and re-register WS
         if (myNewName) {
@@ -891,6 +1019,7 @@ const LANX = {
                     const adminBody = {
                         library_quota_bytes: quotaGb * 1024 * 1024 * 1024,
                         approval_threshold_bytes: threshMb * 1024 * 1024,
+                        admin_token: this.adminToken,
                     };
                     if (newPin) adminBody.new_pin = newPin;
 
@@ -904,13 +1033,27 @@ const LANX = {
                             body: JSON.stringify(adminBody),
                         });
                         if (aRes.ok) {
+                            const aData = await aRes.json();
+                            if (newPin) {
+                                const updatedToken = aData.token || aData.admin_token || aData.admin_pin || newPin;
+                                this.adminToken = updatedToken;
+                                localStorage.setItem('lanx_admin_token', updatedToken);
+                                this.showToast('PIN Admin berhasil diperbarui!', 'success');
+                            }
                             const newPinInput = document.getElementById('setting-admin-new-pin');
                             if (newPinInput) newPinInput.value = '';
                             if (typeof Library !== 'undefined') Library.loadStats();
+                        } else {
+                            const aErr = await aRes.json();
+                            this.showToast(aErr.error || 'Gagal menyimpan konfigurasi Admin', 'error');
                         }
                     } catch (e) {
                         console.error('Failed to update admin config:', e);
+                        this.showToast('Gagal menghubungi server untuk konfigurasi Admin', 'error');
                     }
+                } else if (this.isAdmin && !this.adminToken) {
+                    this.setAdminActive(false);
+                    this.showToast('Sesi Admin berakhir. Harap login kembali.', 'error');
                 }
 
                 if (typeof Devices !== 'undefined') {
@@ -997,7 +1140,7 @@ const LANX = {
         const container = document.getElementById('qr-container');
         const urlEl = document.getElementById('pair-url');
 
-        container.innerHTML = '<div class="qr-loading">Generating QR code...</div>';
+        container.innerHTML = '<div class="qr-loading">Membuat QR code...</div>';
         modal.style.display = 'flex';
 
         try {
@@ -1011,10 +1154,10 @@ const LANX = {
                 const host = window.location.host;
                 urlEl.textContent = `http://${host}`;
             } else {
-                container.innerHTML = '<div class="qr-loading">Failed to generate QR code</div>';
+                container.innerHTML = '<div class="qr-loading">Gagal membuat QR code</div>';
             }
         } catch (e) {
-            container.innerHTML = '<div class="qr-loading">Failed to generate QR code</div>';
+            container.innerHTML = '<div class="qr-loading">Gagal membuat QR code</div>';
         }
     },
 
@@ -1037,9 +1180,9 @@ const LANX = {
                     accepted: accept,
                 }),
             });
-            this.showToast(accept ? 'Device paired' : 'Pair request rejected', accept ? 'success' : 'info');
+            this.showToast(accept ? 'Perangkat berhasil terhubung!' : 'Permintaan koneksi ditolak', accept ? 'success' : 'info');
         } catch (e) {
-            this.showToast('Failed to respond to pair request', 'error');
+            this.showToast('Gagal merespons permintaan koneksi', 'error');
         }
         this.closeModal(modal);
     },
@@ -1168,6 +1311,16 @@ const LANX = {
                     }
                 } catch (e) {
                     this.showToast('Gagal menyimpan profil', 'error');
+                }
+            });
+        }
+
+        const profileNameInput = document.getElementById('profile-device-name');
+        if (profileNameInput) {
+            profileNameInput.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter') {
+                    e.preventDefault();
+                    if (btnSave) btnSave.click();
                 }
             });
         }
@@ -1432,9 +1585,7 @@ const LANX = {
             btnCopyDesc.addEventListener('click', () => {
                 const descText = document.getElementById('preview-desc-text');
                 if (descText && descText.textContent) {
-                    navigator.clipboard.writeText(descText.textContent)
-                        .then(() => this.showToast('Catatan disalin ke clipboard', 'success'))
-                        .catch(() => this.showToast(descText.textContent, 'info'));
+                    this.copyToClipboard(descText.textContent, 'Catatan disalin ke clipboard');
                 }
             });
         }
@@ -1580,10 +1731,10 @@ const LANX = {
         const title = document.getElementById('incoming-title');
         const body = document.getElementById('incoming-body');
 
-        title.textContent = 'Incoming File';
+        title.textContent = 'Berkas Masuk';
         body.innerHTML = `
             <p style="text-align: center; margin-bottom: 8px;">
-                <strong>${msg.device_name || 'Unknown'}</strong> wants to send you a file.
+                <strong>${this.escapeHtml(msg.device_name || 'Perangkat Lain')}</strong> ingin mengirimkan berkas kepada Anda.
             </p>
             <p style="text-align: center; color: var(--color-text-secondary); font-size: var(--font-size-sm);">
                 ${this.escapeHtml(msg.filename)} · ${this.formatSize(msg.size)}
@@ -1663,6 +1814,178 @@ const LANX = {
         div.textContent = str;
         return div.innerHTML;
     },
+
+    openGuideModal() {
+        const modal = document.getElementById('welcome-guide-modal');
+        if (modal) modal.style.display = 'flex';
+    },
+
+    copyToClipboard(text, successMsg = 'Teks berhasil disalin ke papan klip!') {
+        if (!text) return Promise.resolve(false);
+
+        const fallback = (str) => {
+            const ta = document.createElement('textarea');
+            ta.value = str;
+            ta.setAttribute('readonly', '');
+            ta.style.position = 'fixed';
+            ta.style.top = '-9999px';
+            ta.style.left = '-9999px';
+            document.body.appendChild(ta);
+            ta.focus();
+            ta.select();
+            try {
+                const ok = document.execCommand('copy');
+                document.body.removeChild(ta);
+                if (ok) {
+                    if (successMsg) this.showToast(successMsg, 'success');
+                    return true;
+                }
+            } catch (err) {
+                document.body.removeChild(ta);
+            }
+            if (successMsg) this.showToast(str, 'info');
+            return false;
+        };
+
+        if (navigator.clipboard && window.isSecureContext) {
+            return navigator.clipboard.writeText(text)
+                .then(() => {
+                    if (successMsg) this.showToast(successMsg, 'success');
+                    return true;
+                })
+                .catch(() => fallback(text));
+        }
+        return Promise.resolve(fallback(text));
+    },
+
+    checkPairingToken() {
+        const urlParams = new URLSearchParams(window.location.search);
+        const token = urlParams.get('token');
+        if (!token) return;
+
+        // Clean query param from URL bar without page reload
+        const cleanUrl = window.location.pathname.startsWith('/pair') ? '/' : window.location.pathname;
+        window.history.replaceState({}, document.title, cleanUrl);
+
+        this.showToast('Mengirim permintaan koneksi ke perangkat...', 'info');
+
+        // Request pairing from server
+        fetch('/api/pair', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                token: token,
+                device_id: this.clientId,
+                device_name: this.clientName || 'Perangkat Baru',
+            }),
+        })
+        .then(res => res.json())
+        .then(data => {
+            if (data.status === 'pending') {
+                this.pollPairingStatus(token);
+            } else if (data.error) {
+                this.showToast(data.error || 'Token pairing tidak valid atau telah kedaluwarsa', 'error');
+            }
+        })
+        .catch(() => {
+            this.showToast('Gagal mengirim permintaan koneksi', 'error');
+        });
+    },
+
+    pollPairingStatus(token) {
+        let attempts = 0;
+        const maxAttempts = 30; // 30 x 2s = 60s
+        const timer = setInterval(async () => {
+            attempts++;
+            if (attempts > maxAttempts) {
+                clearInterval(timer);
+                this.showToast('Waktu permintaan koneksi habis', 'info');
+                return;
+            }
+            try {
+                const res = await fetch(`/api/pair/pending?token=${encodeURIComponent(token)}`);
+                if (res.ok) {
+                    const data = await res.json();
+                    if (data.status === 'accepted') {
+                        clearInterval(timer);
+                        this.showToast('Perangkat berhasil terhubung dan disetujui!', 'success');
+                        if (typeof Devices !== 'undefined') Devices.loadDevices();
+                    } else if (data.status === 'rejected') {
+                        clearInterval(timer);
+                        this.showToast('Permintaan koneksi ditolak oleh perangkat tujuan', 'info');
+                    }
+                }
+            } catch (e) {
+                // Keep polling
+            }
+        }, 2000);
+    },
+
+    confirm({ title = 'Konfirmasi', message = '', confirmText = 'Lanjutkan', cancelText = 'Batal', danger = false } = {}) {
+        return new Promise((resolve) => {
+            const modal = document.getElementById('app-confirm-modal');
+            const titleEl = document.getElementById('app-confirm-title');
+            const descEl = document.getElementById('app-confirm-desc');
+            const btnClose = document.getElementById('btn-close-app-confirm');
+            const btnCancel = document.getElementById('btn-cancel-app-confirm');
+            const btnExecute = document.getElementById('btn-execute-app-confirm');
+            const iconWrap = document.getElementById('app-confirm-title-wrap');
+
+            if (!modal) {
+                resolve(window.confirm(message));
+                return;
+            }
+
+            if (titleEl) titleEl.textContent = title;
+            if (descEl) descEl.textContent = message;
+            if (btnCancel) btnCancel.textContent = cancelText;
+            if (btnExecute) {
+                btnExecute.textContent = confirmText;
+                if (danger) {
+                    btnExecute.style.background = '#ef4444';
+                    btnExecute.style.borderColor = '#ef4444';
+                    if (iconWrap) iconWrap.style.color = '#ef4444';
+                } else {
+                    btnExecute.style.background = '';
+                    btnExecute.style.borderColor = '';
+                    if (iconWrap) iconWrap.style.color = '';
+                }
+            }
+
+            const cleanUp = (result) => {
+                modal.style.display = 'none';
+                btnClose?.removeEventListener('click', onCancel);
+                btnCancel?.removeEventListener('click', onCancel);
+                btnExecute?.removeEventListener('click', onConfirm);
+                modal.removeEventListener('click', onOverlay);
+                document.removeEventListener('keydown', onKeyDown);
+                resolve(result);
+            };
+
+            const onCancel = () => cleanUp(false);
+            const onConfirm = () => cleanUp(true);
+            const onOverlay = (e) => { if (e.target === modal) cleanUp(false); };
+            const onKeyDown = (e) => {
+                if (modal.style.display !== 'none') {
+                    if (e.key === 'Escape') {
+                        e.preventDefault();
+                        cleanUp(false);
+                    } else if (e.key === 'Enter') {
+                        e.preventDefault();
+                        cleanUp(true);
+                    }
+                }
+            };
+
+            btnClose?.addEventListener('click', onCancel);
+            btnCancel?.addEventListener('click', onCancel);
+            btnExecute?.addEventListener('click', onConfirm);
+            modal.addEventListener('click', onOverlay);
+            document.addEventListener('keydown', onKeyDown);
+
+            modal.style.display = 'flex';
+        });
+    },
 };
 
 // ─── Guide Modal ─────────────────────────────────────
@@ -1695,8 +2018,8 @@ LANX.setupGuideModal = function() {
         });
     }
 
-    // Show on visit if not dismissed in current session
-    if (!sessionStorage.getItem('lanx_guide_dismissed')) {
+    // Show only on first visit if not dismissed yet
+    if (!localStorage.getItem('lanx_seen_guide') && !sessionStorage.getItem('lanx_guide_dismissed')) {
         modal.style.display = 'flex';
     }
 };

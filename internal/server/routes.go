@@ -149,6 +149,10 @@ func (s *Server) handleUpdateSettings(w http.ResponseWriter, r *http.Request) {
 		_, _ = s.devices.UpdateProfile(s.cfg.DeviceID, name, "")
 	}
 
+	if s.onSettingsUpdated != nil {
+		s.onSettingsUpdated(s.cfg)
+	}
+
 	s.handleGetSettings(w, r)
 }
 
@@ -173,12 +177,15 @@ func (s *Server) handleAdminLogin(w http.ResponseWriter, r *http.Request) {
 
 	writeJSON(w, http.StatusOK, map[string]any{
 		"status":      "ok",
+		"token":       s.cfg.GetAdminPIN(),
 		"admin_token": s.cfg.GetAdminPIN(),
 		"message":     "Login admin berhasil",
 	})
 }
 
 type adminConfigResponse struct {
+	Token                  string `json:"token"`
+	AdminToken             string `json:"admin_token"`
 	AdminPIN               string `json:"admin_pin"`
 	LibraryQuotaBytes      int64  `json:"library_quota_bytes"`
 	ApprovalThresholdBytes int64  `json:"approval_threshold_bytes"`
@@ -192,6 +199,8 @@ func (s *Server) handleGetAdminConfig(w http.ResponseWriter, r *http.Request) {
 	}
 
 	writeJSON(w, http.StatusOK, adminConfigResponse{
+		Token:                  s.cfg.GetAdminPIN(),
+		AdminToken:             s.cfg.GetAdminPIN(),
 		AdminPIN:               s.cfg.GetAdminPIN(),
 		LibraryQuotaBytes:      s.cfg.GetLibraryQuotaBytes(),
 		ApprovalThresholdBytes: s.cfg.GetApprovalThresholdBytes(),
@@ -237,6 +246,8 @@ func (s *Server) handleUpdateAdminConfig(w http.ResponseWriter, r *http.Request)
 	}
 
 	writeJSON(w, http.StatusOK, adminConfigResponse{
+		Token:                  s.cfg.GetAdminPIN(),
+		AdminToken:             s.cfg.GetAdminPIN(),
 		AdminPIN:               s.cfg.GetAdminPIN(),
 		LibraryQuotaBytes:      s.cfg.GetLibraryQuotaBytes(),
 		ApprovalThresholdBytes: s.cfg.GetApprovalThresholdBytes(),

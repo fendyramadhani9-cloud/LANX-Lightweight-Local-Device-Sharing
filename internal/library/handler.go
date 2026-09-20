@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"mime"
+	"net"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -44,6 +45,10 @@ func NewHandler(mgr *Manager, cfg *config.Config, libraryDir string) *Handler {
 // RegisterRoutes registers library routes on the mux.
 func (h *Handler) RegisterRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("GET /api/library", h.handleList)
+	mux.HandleFunc("GET /api/library/folders", h.handleListFolders)
+	mux.HandleFunc("POST /api/library/folders", h.handleAddFolder)
+	mux.HandleFunc("DELETE /api/library/folders", h.handleDeleteFolder)
+	mux.HandleFunc("POST /api/library/clear", h.handleClear)
 	mux.HandleFunc("GET /api/library/pending", h.handleListPending)
 	mux.HandleFunc("POST /api/library/upload", h.handleUpload)
 	mux.HandleFunc("GET /api/library/download/{id}", h.handleDownload)
@@ -55,7 +60,8 @@ func (h *Handler) RegisterRoutes(mux *http.ServeMux) {
 
 func (h *Handler) handleList(w http.ResponseWriter, r *http.Request) {
 	query := r.URL.Query().Get("q")
-	items := h.mgr.ListApproved(query)
+	folder := r.URL.Query().Get("folder")
+	items := h.mgr.ListApproved(query, folder)
 	writeJSON(w, http.StatusOK, items)
 }
 
@@ -155,6 +161,10 @@ func (h *Handler) handleUpload(w http.ResponseWriter, r *http.Request) {
 	}
 	uploaderID := strings.TrimSpace(r.FormValue("uploader_id"))
 	description := strings.TrimSpace(r.FormValue("description"))
+	folder := strings.TrimSpace(r.FormValue("folder"))
+	if folder == "" {
+		folder = "Umum"
+	}
 
 	filename := sanitizeFilename(header.Filename)
 	if filename == "" {
@@ -171,6 +181,7 @@ func (h *Handler) handleUpload(w http.ResponseWriter, r *http.Request) {
 
 	written, err := io.Copy(destFile, file)
 	if err != nil {
+		destFile.Close()
 		_ = os.Remove(destPath)
 		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "Gagal menulis berkas"})
 		return
@@ -183,6 +194,7 @@ func (h *Handler) handleUpload(w http.ResponseWriter, r *http.Request) {
 		Path:          destPath,
 		Size:          written,
 		Description:   description,
+		Folder:        folder,
 		UploaderName:  uploaderName,
 		UploaderID:    uploaderID,
 		DeleteToken:   deleteToken,
@@ -193,6 +205,7 @@ func (h *Handler) handleUpload(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := h.mgr.AddItem(item); err != nil {
+		destFile.Close()
 		_ = os.Remove(destPath)
 		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "Gagal menyimpan metadata berkas"})
 		return
@@ -240,9 +253,10 @@ func (h *Handler) handleDownload(w http.ResponseWriter, r *http.Request) {
 }
 
 type deleteRequest struct {
-	ID         string `json:"id"`
-	Token      string `json:"token,omitempty"`
-	AdminToken string `json:"admin_token,omitempty"`
+	ID          string `json:"id"`
+	Token       string `json:"token,omitempty"`
+	DeleteToken string `json:"delete_token,omitempty"`
+	AdminToken  string `json:"admin_token,omitempty"`
 }
 
 func (h *Handler) handleDelete(w http.ResponseWriter, r *http.Request) {
@@ -252,9 +266,15 @@ func (h *Handler) handleDelete(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Merge delete_token and token — frontend may send either field name
+	selfToken := req.Token
+	if selfToken == "" {
+		selfToken = req.DeleteToken
+	}
+
 	isAdmin := h.ValidateAdminToken(req.AdminToken) || h.isAdminRequest(r)
 
-	if err := h.mgr.Delete(req.ID, req.Token, isAdmin); err != nil {
+	if err := h.mgr.Delete(req.ID, selfToken, isAdmin); err != nil {
 		writeJSON(w, http.StatusForbidden, map[string]string{"error": err.Error()})
 		return
 	}
@@ -315,6 +335,86 @@ func (h *Handler) handleStats(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
+func (h *Handler) handleListFolders(w http.ResponseWriter, r *http.Request) {
+	folders := h.mgr.GetFolders()
+	writeJSON(w, http.StatusOK, map[string]any{
+		"status":  "ok",
+		"folders": folders,
+	})
+}
+
+func (h *Handler) handleAddFolder(w http.ResponseWriter, r *http.Request) {
+	var req struct {
+		Name       string `json:"name"`
+		AdminToken string `json:"admin_token"`
+	}
+	_ = json.NewDecoder(r.Body).Decode(&req)
+
+	if !h.ValidateAdminToken(req.AdminToken) && !h.isAdminRequest(r) {
+		writeJSON(w, http.StatusUnauthorized, map[string]string{"error": "Unauthorized: Mode Admin diperlukan"})
+		return
+	}
+
+	if err := h.mgr.AddFolder(req.Name); err != nil {
+		writeJSON(w, http.StatusBadRequest, map[string]string{"error": err.Error()})
+		return
+	}
+
+	writeJSON(w, http.StatusOK, map[string]any{
+		"status":  "ok",
+		"folders": h.mgr.GetFolders(),
+	})
+}
+
+func (h *Handler) handleDeleteFolder(w http.ResponseWriter, r *http.Request) {
+	var req struct {
+		Name       string `json:"name"`
+		AdminToken string `json:"admin_token"`
+	}
+	_ = json.NewDecoder(r.Body).Decode(&req)
+
+	if !h.ValidateAdminToken(req.AdminToken) && !h.isAdminRequest(r) {
+		writeJSON(w, http.StatusUnauthorized, map[string]string{"error": "Unauthorized: Mode Admin diperlukan"})
+		return
+	}
+
+	if err := h.mgr.DeleteFolder(req.Name); err != nil {
+		writeJSON(w, http.StatusBadRequest, map[string]string{"error": err.Error()})
+		return
+	}
+
+	writeJSON(w, http.StatusOK, map[string]any{
+		"status":  "ok",
+		"folders": h.mgr.GetFolders(),
+	})
+}
+
+func (h *Handler) handleClear(w http.ResponseWriter, r *http.Request) {
+	var req struct {
+		Target     string `json:"target"` // "images" or "all"
+		AdminToken string `json:"admin_token"`
+	}
+	_ = json.NewDecoder(r.Body).Decode(&req)
+
+	if !h.ValidateAdminToken(req.AdminToken) && !h.isAdminRequest(r) {
+		writeJSON(w, http.StatusUnauthorized, map[string]string{"error": "Unauthorized: Mode Admin diperlukan"})
+		return
+	}
+
+	count, freed, err := h.mgr.ClearItems(req.Target)
+	if err != nil {
+		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": err.Error()})
+		return
+	}
+
+	writeJSON(w, http.StatusOK, map[string]any{
+		"status":      "ok",
+		"target":      req.Target,
+		"count":       count,
+		"freed_bytes": freed,
+	})
+}
+
 // --- Admin Authentication Helpers ---
 
 // CreateAdminSession generates an admin session token valid for 7 days.
@@ -361,7 +461,10 @@ func getClientIP(r *http.Request) string {
 	if xff := r.Header.Get("X-Forwarded-For"); xff != "" {
 		return strings.TrimSpace(strings.Split(xff, ",")[0])
 	}
-	return strings.Split(r.RemoteAddr, ":")[0]
+	if host, _, err := net.SplitHostPort(r.RemoteAddr); err == nil {
+		return host
+	}
+	return r.RemoteAddr
 }
 
 var unsafeChars = regexp.MustCompile(`[<>:"/\\|?*\x00-\x1f]`)

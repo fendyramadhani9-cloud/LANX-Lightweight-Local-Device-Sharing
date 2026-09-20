@@ -261,6 +261,11 @@ const Clipboard = {
     copyToClipboard(text) {
         if (!text) return;
 
+        if (typeof LANX !== 'undefined' && LANX.copyToClipboard) {
+            LANX.copyToClipboard(text, 'Teks berhasil disalin ke papan klip!');
+            return;
+        }
+
         if (navigator.clipboard && window.isSecureContext) {
             navigator.clipboard.writeText(text)
                 .then(() => {

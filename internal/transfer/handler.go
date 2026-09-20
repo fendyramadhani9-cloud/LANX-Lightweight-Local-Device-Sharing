@@ -113,6 +113,7 @@ type Handler struct {
 	mailbox             *Mailbox
 	isOnline            func(id string) bool
 	autoDeleteDelivered bool
+	adminValidator      func(token string) bool
 }
 
 // NewHandler creates a new transfer handler.
@@ -129,6 +130,23 @@ func NewHandler(mgr *Manager, downloadDir string, onEvent func(string, any)) *Ha
 // SetAutoDeleteDelivered configures whether files are removed from server after delivery.
 func (h *Handler) SetAutoDeleteDelivered(enabled bool) {
 	h.autoDeleteDelivered = enabled
+}
+
+// SetAdminValidator sets the function used to validate admin tokens for protected endpoints.
+func (h *Handler) SetAdminValidator(fn func(token string) bool) {
+	h.adminValidator = fn
+}
+
+// isAdminRequest checks X-Admin-Token header or admin_token query param.
+func (h *Handler) isAdminRequest(r *http.Request) bool {
+	if h.adminValidator == nil {
+		return false
+	}
+	token := r.Header.Get("X-Admin-Token")
+	if token == "" {
+		token = r.URL.Query().Get("admin_token")
+	}
+	return h.adminValidator(token)
 }
 
 // StartAutoCleaner runs periodic background cleanup of old files.
@@ -262,6 +280,8 @@ func (h *Handler) handleUpload(w http.ResponseWriter, r *http.Request) {
 		if n > 0 {
 			nw, writeErr := destFile.Write(buf[:n])
 			if writeErr != nil {
+				destFile.Close()
+				_ = os.Remove(destPath)
 				h.mgr.Fail(t.ID, "Failed to write file")
 				writeJSON(w, http.StatusInternalServerError, map[string]string{
 					"error": "Failed to write file",
@@ -280,6 +300,8 @@ func (h *Handler) handleUpload(w http.ResponseWriter, r *http.Request) {
 			if readErr == io.EOF {
 				break
 			}
+			destFile.Close()
+			_ = os.Remove(destPath)
 			h.mgr.Fail(t.ID, "Transfer interrupted")
 			writeJSON(w, http.StatusInternalServerError, map[string]string{
 				"error": "Transfer interrupted",
@@ -440,6 +462,7 @@ func (h *Handler) handleUploadFolder(w http.ResponseWriter, r *http.Request) {
 
 	if err := zipWriter.Close(); err != nil {
 		destZipFile.Close()
+		_ = os.Remove(destPath)
 		h.mgr.Fail(t.ID, "Failed to finalize zip archive")
 		writeJSON(w, http.StatusInternalServerError, map[string]string{
 			"error": "Failed to finalize zip archive",
@@ -532,8 +555,8 @@ func (h *Handler) handleDownload(w http.ResponseWriter, r *http.Request) {
 	// If direct 1-to-1 transfer to specific device and actual download (not preview)
 	if !isPreview && h.autoDeleteDelivered && sf.TargetDeviceID != "" && sf.TargetDeviceID != "all" {
 		go func(filePath string, fileID string) {
-			// Small grace period of 8 seconds to allow download completion
-			time.Sleep(8 * time.Second)
+			// Grace period of 60 seconds to allow large file downloads to finish
+			time.Sleep(60 * time.Second)
 			_ = os.Remove(filePath)
 			h.store.Remove(fileID)
 		}(sf.Path, sf.ID)
@@ -564,6 +587,12 @@ func (h *Handler) handleStorageStats(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) handleStorageClean(w http.ResponseWriter, r *http.Request) {
+	// Require admin authorization
+	if !h.isAdminRequest(r) {
+		writeJSON(w, http.StatusUnauthorized, map[string]string{"error": "Unauthorized: Mode Admin diperlukan"})
+		return
+	}
+
 	var deletedCount int
 	var freedBytes int64
 

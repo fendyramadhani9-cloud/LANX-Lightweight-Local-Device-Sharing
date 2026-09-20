@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"net"
 	"net/http"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -61,21 +62,28 @@ func (m *Manager) handleQR(w http.ResponseWriter, r *http.Request) {
 	token := m.generateToken()
 
 	// Build pairing URL: prefer incoming Host header if it's an accessible LAN address
-	ip := ""
+	hostPart := ""
+	portPart := m.port
 	if r.Host != "" {
-		host, _, err := net.SplitHostPort(r.Host)
-		if err != nil {
-			host = r.Host
-		}
-		if host != "localhost" && host != "127.0.0.1" && host != "::1" && !strings.HasPrefix(host, "169.254.") {
-			ip = host
+		host, portStr, err := net.SplitHostPort(r.Host)
+		if err == nil {
+			if host != "localhost" && host != "127.0.0.1" && host != "::1" && !strings.HasPrefix(host, "169.254.") {
+				hostPart = host
+			}
+			if p, err := strconv.Atoi(portStr); err == nil && p > 0 {
+				portPart = p
+			}
+		} else {
+			if r.Host != "localhost" && r.Host != "127.0.0.1" && r.Host != "::1" && !strings.HasPrefix(r.Host, "169.254.") {
+				hostPart = r.Host
+			}
 		}
 	}
-	if ip == "" {
-		ip = server.GetLocalIP()
+	if hostPart == "" {
+		hostPart = server.GetLocalIP()
 	}
 
-	pairURL := fmt.Sprintf("http://%s:%d/pair?token=%s", ip, m.port, token.Token)
+	pairURL := fmt.Sprintf("http://%s:%d/pair?token=%s", hostPart, portPart, token.Token)
 
 	// Generate QR code
 	png, err := qrcode.Encode(pairURL, qrcode.Medium, 256)
@@ -136,19 +144,28 @@ func (m *Manager) handlePending(w http.ResponseWriter, r *http.Request) {
 
 	m.mu.RLock()
 	pt, ok := m.tokens[token]
+	var accepted *bool
+	var expired bool
+	if ok {
+		expired = time.Now().After(pt.ExpiresAt)
+		if pt.Accepted != nil {
+			val := *pt.Accepted
+			accepted = &val
+		}
+	}
 	m.mu.RUnlock()
 
-	if !ok {
-		writeJSON(w, http.StatusNotFound, map[string]string{"error": "Token not found"})
+	if !ok || expired {
+		writeJSON(w, http.StatusNotFound, map[string]string{"error": "Token not found or expired"})
 		return
 	}
 
-	if pt.Accepted == nil {
+	if accepted == nil {
 		writeJSON(w, http.StatusOK, map[string]string{"status": "pending"})
 		return
 	}
 
-	if *pt.Accepted {
+	if *accepted {
 		writeJSON(w, http.StatusOK, map[string]string{"status": "accepted"})
 	} else {
 		writeJSON(w, http.StatusOK, map[string]string{"status": "rejected"})

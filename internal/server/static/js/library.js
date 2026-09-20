@@ -11,18 +11,25 @@ const Library = {
     selectedDays: 7,
     selectedCustomDate: '',
     searchQuery: '',
+    folders: ['Umum'],
+    currentFolder: 'root',
 
     init() {
         this.setupExpiryControls();
         this.setupSearch();
         this.setupDropZone();
+        this.setupBreadcrumbs();
+        this.setupFolderControls();
+        this.setupAdminClearControls();
         this.setupPreviewClickListener();
 
         // Initial fetch
+        this.loadFolders();
         this.loadStats();
         this.loadItems();
         if (LANX.isAdmin) {
             this.loadPending();
+            this.updateAdminActionsVisibility(true);
         }
     },
 
@@ -111,13 +118,7 @@ const Library = {
     // ─── Search Bar ──────────────────────────────────────
 
     setupSearch() {
-        const searchInput = document.getElementById('library-search-input');
-        if (searchInput) {
-            searchInput.addEventListener('input', (e) => {
-                this.searchQuery = (e.target.value || '').trim().toLowerCase();
-                this.render();
-            });
-        }
+        // Global search filtering is centrally coordinated by LANX.applyGlobalSearch() in app.js
     },
 
     // ─── Drop Zone & Upload ──────────────────────────────
@@ -130,13 +131,21 @@ const Library = {
         if (!dropZone || !fileInput) return;
 
         dropZone.addEventListener('click', (e) => {
-            // If clicking controls, pills, or action buttons, don't trigger file picker
-            if (e.target.closest('.library-upload-controls') || e.target.closest('#library-drop-actions')) return;
+            // If clicking controls, pills, desc box, or action buttons, don't trigger file picker
+            if (e.target.closest('.library-upload-controls, #library-drop-actions, .library-desc-box, .library-desc-input, button, input, label')) return;
             fileInput.click();
         });
 
         if (btnPick) {
             btnPick.addEventListener('click', (e) => {
+                e.stopPropagation();
+                fileInput.click();
+            });
+        }
+
+        const btnUploadExplorer = document.getElementById('btn-library-upload-explorer');
+        if (btnUploadExplorer) {
+            btnUploadExplorer.addEventListener('click', (e) => {
                 e.stopPropagation();
                 fileInput.click();
             });
@@ -186,6 +195,10 @@ const Library = {
         formData.append('description', description);
         formData.append('uploader_name', LANX.clientName || 'Tamu');
         formData.append('uploader_id', LANX.clientId || '');
+
+        const folderSelect = document.getElementById('library-upload-folder-select');
+        const folder = folderSelect ? folderSelect.value : (this.currentFolder !== 'all' ? this.currentFolder : 'Umum');
+        formData.append('folder', folder || 'Umum');
 
         if (this.selectedCustomDate) {
             formData.append('expiry_date', this.selectedCustomDate);
@@ -250,11 +263,430 @@ const Library = {
             const res = await fetch('/api/library');
             if (res.ok) {
                 this.items = await res.json() || [];
+                this.renderFolders();
+                this.renderBreadcrumbs();
                 this.render();
             }
         } catch (e) {
             // Ignore offline errors
         }
+    },
+
+    // ─── Folders Management (Option 2: Explorer Style) ───
+
+    async loadFolders() {
+        try {
+            const res = await fetch('/api/library/folders');
+            if (res.ok) {
+                const data = await res.json();
+                this.folders = data.folders || ['Umum'];
+                this.renderFolderSelect();
+                this.renderFolders();
+                this.renderBreadcrumbs();
+            }
+        } catch (e) {
+            // Ignore offline errors
+        }
+    },
+
+    renderFolderSelect() {
+        const select = document.getElementById('library-upload-folder-select');
+        if (!select) return;
+        const currentVal = select.value || (this.currentFolder !== 'root' && this.currentFolder !== 'all' ? this.currentFolder : 'Umum');
+        select.innerHTML = this.folders.map(f => `
+            <option value="${LANX.escapeHtml(f)}" ${f === currentVal ? 'selected' : ''}>${LANX.escapeHtml(f)}</option>
+        `).join('');
+    },
+
+    setupBreadcrumbs() {
+        const btnBack = document.getElementById('btn-library-back');
+        if (btnBack) {
+            btnBack.addEventListener('click', () => {
+                this.openFolder('root');
+            });
+        }
+    },
+
+    renderBreadcrumbs() {
+        const breadcrumbs = document.getElementById('library-breadcrumbs');
+        const btnBack = document.getElementById('btn-library-back');
+        if (!breadcrumbs) return;
+
+        const isRoot = !this.currentFolder || this.currentFolder === 'root' || this.currentFolder === 'all';
+
+        if (btnBack) {
+            btnBack.style.display = isRoot ? 'none' : 'inline-flex';
+        }
+
+        if (isRoot) {
+            breadcrumbs.innerHTML = `
+                <span class="breadcrumb-item active" id="breadcrumb-root">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/>
+                        <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/>
+                    </svg>
+                    <span>Pustaka</span>
+                </span>
+            `;
+        } else {
+            breadcrumbs.innerHTML = `
+                <button type="button" class="breadcrumb-item" id="breadcrumb-root" title="Kembali ke Pustaka Utama">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/>
+                        <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/>
+                    </svg>
+                    <span>Pustaka</span>
+                </button>
+                <span class="breadcrumb-sep">/</span>
+                <span class="breadcrumb-item active">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/>
+                    </svg>
+                    <span>${LANX.escapeHtml(this.currentFolder)}</span>
+                </span>
+            `;
+
+            const rootBtn = breadcrumbs.querySelector('#breadcrumb-root');
+            if (rootBtn) {
+                rootBtn.addEventListener('click', () => this.openFolder('root'));
+            }
+        }
+    },
+
+    renderFolders() {
+        const section = document.getElementById('library-folders-section');
+        const grid = document.getElementById('explorer-folders-grid');
+        const countEl = document.getElementById('library-folders-count');
+        if (!section || !grid) return;
+
+        const isRoot = !this.currentFolder || this.currentFolder === 'root' || this.currentFolder === 'all';
+
+        if (!isRoot) {
+            section.style.display = 'none';
+            return;
+        }
+
+        section.style.display = 'block';
+
+        // Count items per folder
+        const counts = {};
+        (this.items || []).forEach(it => {
+            const f = it.folder || 'Umum';
+            counts[f] = (counts[f] || 0) + 1;
+        });
+
+        if (countEl) {
+            countEl.textContent = `${this.folders.length} folder`;
+        }
+
+        const cardsHtml = this.folders.map(f => {
+            const isDefault = f.toLowerCase() === 'umum';
+            const count = counts[f] || 0;
+            return `
+                <div class="explorer-folder-card" data-folder="${LANX.escapeHtml(f)}" title="Buka folder ${LANX.escapeHtml(f)}">
+                    <div class="explorer-folder-top">
+                        <svg class="explorer-folder-icon" viewBox="0 0 24 24" fill="currentColor" fill-opacity="0.18" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path>
+                        </svg>
+                        ${(!isDefault && LANX.isAdmin) ? `
+                            <button type="button" class="btn-del-folder" data-del-folder="${LANX.escapeHtml(f)}" title="Hapus folder">
+                                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                            </button>
+                        ` : ''}
+                    </div>
+                    <div class="explorer-folder-name">${LANX.escapeHtml(f)}</div>
+                    <div class="explorer-folder-meta">
+                        <span class="explorer-folder-badge">${count} berkas</span>
+                    </div>
+                </div>
+            `;
+        }).join('');
+
+        grid.innerHTML = cardsHtml;
+
+        // Attach folder click listeners
+        grid.querySelectorAll('.explorer-folder-card').forEach(card => {
+            card.addEventListener('click', (e) => {
+                const delBtn = e.target.closest('.btn-del-folder');
+                if (delBtn) {
+                    e.stopPropagation();
+                    this.deleteFolder(delBtn.dataset.delFolder);
+                    return;
+                }
+                this.openFolder(card.dataset.folder);
+            });
+        });
+    },
+
+    openFolder(folder) {
+        this.currentFolder = folder;
+        const select = document.getElementById('library-upload-folder-select');
+        if (select) {
+            if (folder && folder !== 'root' && folder !== 'all') {
+                select.value = folder;
+            } else {
+                select.value = 'Umum';
+            }
+        }
+        this.renderFolders();
+        this.renderBreadcrumbs();
+        this.render();
+    },
+
+    async addFolder(name) {
+        const folderName = (name || '').trim();
+        if (!folderName) return;
+
+        const token = LANX.adminToken;
+        if (!token) {
+            LANX.showToast('Mode Admin diperlukan untuk membuat folder', 'info');
+            LANX.setAdminActive(false);
+            const adminLoginModal = document.getElementById('admin-login-modal');
+            if (adminLoginModal) {
+                adminLoginModal.style.display = 'flex';
+                const pinInput = document.getElementById('admin-pin-input');
+                if (pinInput) pinInput.focus();
+            }
+            return;
+        }
+
+        try {
+            const res = await fetch('/api/library/folders', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-Admin-Token': token,
+                },
+                body: JSON.stringify({
+                    name: folderName,
+                    admin_token: token,
+                }),
+            });
+            const data = await res.json();
+            if (res.ok) {
+                LANX.showToast(`Folder "${folderName}" berhasil dibuat`, 'success');
+                await this.loadFolders();
+                this.openFolder(folderName);
+            } else {
+                LANX.showToast(data.error || 'Gagal membuat folder', 'error');
+                if (res.status === 401) {
+                    LANX.setAdminActive(false);
+                }
+            }
+        } catch (e) {
+            LANX.showToast('Gagal membuat folder (koneksi terputus)', 'error');
+        }
+    },
+
+    async deleteFolder(name) {
+        const ok = (typeof LANX !== 'undefined' && LANX.confirm)
+            ? await LANX.confirm({
+                title: 'Hapus Folder',
+                message: `Hapus folder "${name}"? Berkas di dalamnya akan dipindahkan ke folder "Umum".`,
+                confirmText: 'Hapus Folder',
+                danger: true,
+            })
+            : confirm(`Hapus folder "${name}"? Berkas di dalamnya akan dipindahkan ke folder "Umum".`);
+        if (!ok) return;
+
+        const token = LANX.adminToken;
+        if (!token) {
+            LANX.showToast('Mode Admin diperlukan untuk menghapus folder', 'info');
+            LANX.setAdminActive(false);
+            return;
+        }
+
+        try {
+            const res = await fetch('/api/library/folders', {
+                method: 'DELETE',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-Admin-Token': token,
+                },
+                body: JSON.stringify({
+                    name: name,
+                    admin_token: token,
+                }),
+            });
+            const data = await res.json();
+            if (res.ok) {
+                LANX.showToast(`Folder "${name}" telah dihapus`, 'info');
+                if (this.currentFolder === name) {
+                    this.currentFolder = 'root';
+                }
+                this.loadFolders();
+                this.loadItems();
+            } else {
+                LANX.showToast(data.error || 'Gagal menghapus folder', 'error');
+                if (res.status === 401) {
+                    LANX.setAdminActive(false);
+                }
+            }
+        } catch (e) {
+            LANX.showToast('Gagal menghapus folder', 'error');
+        }
+    },
+
+    setupFolderControls() {
+        const btnAdd = document.getElementById('btn-library-add-folder');
+        const modal = document.getElementById('add-folder-modal');
+        const btnClose = document.getElementById('btn-close-add-folder');
+        const btnCancel = document.getElementById('btn-cancel-add-folder');
+        const btnSubmit = document.getElementById('btn-submit-add-folder');
+        const inputName = document.getElementById('new-folder-name-input');
+
+        const openModal = () => {
+            if (!LANX.isAdmin || !LANX.adminToken) {
+                const adminLoginModal = document.getElementById('admin-login-modal');
+                if (adminLoginModal) {
+                    adminLoginModal.style.display = 'flex';
+                    const pinInput = document.getElementById('admin-pin-input');
+                    if (pinInput) pinInput.focus();
+                    LANX.showToast('Mode Admin diperlukan untuk membuat folder', 'info');
+                    return;
+                }
+            }
+            if (inputName) inputName.value = '';
+            if (modal) modal.style.display = 'flex';
+            if (inputName) inputName.focus();
+        };
+
+        const closeModal = () => {
+            if (modal) modal.style.display = 'none';
+        };
+
+        if (btnAdd) btnAdd.addEventListener('click', openModal);
+        if (btnClose) btnClose.addEventListener('click', closeModal);
+        if (btnCancel) btnCancel.addEventListener('click', closeModal);
+        if (modal) {
+            modal.addEventListener('click', (e) => {
+                if (e.target === modal) closeModal();
+            });
+        }
+
+        if (btnSubmit) {
+            btnSubmit.addEventListener('click', () => {
+                const name = inputName ? inputName.value.trim() : '';
+                if (!name) {
+                    LANX.showToast('Nama folder tidak boleh kosong', 'error');
+                    return;
+                }
+                this.addFolder(name);
+                closeModal();
+            });
+        }
+        if (inputName) {
+            inputName.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter') {
+                    e.preventDefault();
+                    if (btnSubmit) btnSubmit.click();
+                }
+            });
+        }
+    },
+
+    // ─── Admin Bulk Clear Controls ───────────────────────
+
+    setupAdminClearControls() {
+        const btnClearImages = document.getElementById('btn-lib-clear-images');
+        const btnClearAll = document.getElementById('btn-lib-clear-all');
+        const modal = document.getElementById('clear-confirm-modal');
+        const btnClose = document.getElementById('btn-close-clear-confirm');
+        const btnCancel = document.getElementById('btn-cancel-clear-confirm');
+        const btnExecute = document.getElementById('btn-execute-clear');
+        const titleEl = document.getElementById('clear-confirm-title');
+        const descEl = document.getElementById('clear-confirm-desc');
+        const pinField = document.getElementById('clear-pin-field');
+        const pinInput = document.getElementById('clear-admin-pin');
+
+        let pendingClearTarget = null;
+
+        const openClearModal = (target) => {
+            pendingClearTarget = target;
+            if (target === 'images') {
+                if (titleEl) titleEl.textContent = 'Bersihkan Semua Gambar';
+                if (descEl) descEl.textContent = 'Apakah Anda yakin ingin menghapus SEMUA berkas gambar (.jpg, .png, .webp, dll) di Pustaka? Berkas dokumen/arsip lainnya tidak akan terpengaruh.';
+            } else {
+                if (titleEl) titleEl.textContent = 'Kosongkan Seluruh Pustaka';
+                if (descEl) descEl.textContent = 'PERINGATAN: Semua berkas yang tersimpan di Pustaka Bersama akan dihapus permanen dari server.';
+            }
+
+            if (!LANX.isAdmin && pinField) {
+                pinField.style.display = 'block';
+                if (pinInput) pinInput.value = '';
+            } else if (pinField) {
+                pinField.style.display = 'none';
+            }
+
+            if (modal) modal.style.display = 'flex';
+        };
+
+        const closeModal = () => {
+            if (modal) modal.style.display = 'none';
+            pendingClearTarget = null;
+        };
+
+        if (btnClearImages) btnClearImages.addEventListener('click', () => openClearModal('images'));
+        if (btnClearAll) btnClearAll.addEventListener('click', () => openClearModal('all'));
+        if (btnClose) btnClose.addEventListener('click', closeModal);
+        if (btnCancel) btnCancel.addEventListener('click', closeModal);
+        if (modal) {
+            modal.addEventListener('click', (e) => {
+                if (e.target === modal) closeModal();
+            });
+        }
+        if (pinInput) {
+            pinInput.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter') {
+                    e.preventDefault();
+                    if (btnExecute) btnExecute.click();
+                }
+            });
+        }
+
+        if (btnExecute) {
+            btnExecute.addEventListener('click', async () => {
+                if (!pendingClearTarget) return;
+                const token = LANX.adminToken || (pinInput ? pinInput.value.trim() : '');
+                if (!token) {
+                    LANX.showToast('Harap masukkan PIN Admin untuk melanjutkan', 'error');
+                    return;
+                }
+
+                try {
+                    const res = await fetch('/api/library/clear', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-Admin-Token': token,
+                        },
+                        body: JSON.stringify({
+                            target: pendingClearTarget,
+                            admin_token: token,
+                        }),
+                    });
+                    const data = await res.json();
+                    if (res.ok) {
+                        LANX.showToast(`Berhasil menghapus ${data.count} berkas (${LANX.formatSize(data.freed_bytes || 0)} ruang dibebaskan)`, 'success');
+                        closeModal();
+                        this.loadItems();
+                        this.loadStats();
+                    } else {
+                        LANX.showToast(data.error || 'Gagal membersihkan berkas', 'error');
+                    }
+                } catch (e) {
+                    LANX.showToast('Gagal membersihkan berkas (koneksi terputus)', 'error');
+                }
+            });
+        }
+    },
+
+    updateAdminActionsVisibility(isAdmin) {
+        const adminActions = document.getElementById('library-admin-actions');
+        if (adminActions) {
+            adminActions.style.display = isAdmin ? 'inline-flex' : 'none';
+        }
+        this.renderFolders();
     },
 
     async loadPending() {
@@ -307,7 +739,15 @@ const Library = {
 
     async rejectItem(itemId) {
         if (!LANX.adminToken) return;
-        if (!confirm('Tolak dan hapus berkas ini dari server?')) return;
+        const ok = (typeof LANX !== 'undefined' && LANX.confirm)
+            ? await LANX.confirm({
+                title: 'Tolak Berkas',
+                message: 'Tolak dan bersihkan berkas ini dari server?',
+                confirmText: 'Tolak Berkas',
+                danger: true,
+            })
+            : confirm('Tolak dan hapus berkas ini dari server?');
+        if (!ok) return;
 
         try {
             const res = await fetch('/api/library/reject', {
@@ -346,7 +786,15 @@ const Library = {
             ? `Hapus berkas "${fileName}" dari Pustaka sebagai Admin?`
             : `Hapus berkas "${fileName}" milik Anda dari Pustaka?`;
 
-        if (!confirm(promptMsg)) return;
+        const ok = (typeof LANX !== 'undefined' && LANX.confirm)
+            ? await LANX.confirm({
+                title: 'Hapus Berkas Pustaka',
+                message: promptMsg,
+                confirmText: 'Hapus Berkas',
+                danger: true,
+            })
+            : confirm(promptMsg);
+        if (!ok) return;
 
         const headers = { 'Content-Type': 'application/json' };
         if (isAdmin && LANX.adminToken) {
@@ -430,7 +878,7 @@ const Library = {
                 <div class="pending-item-info">
                     <div class="pending-item-title">
                         <span class="pending-item-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg></span>
-                        <strong>${LANX.escapeHtml(item.name)}</strong>
+                        <strong>${LANX.escapeHtml(item.filename || item.name || 'Berkas')}</strong>
                         <span class="pending-item-size">(${LANX.formatSize(item.size)})</span>
                     </div>
                     <div class="pending-item-meta">
@@ -468,22 +916,48 @@ const Library = {
     render() {
         const grid = document.getElementById('library-grid');
         const empty = document.getElementById('library-empty');
+        const filesHeading = document.getElementById('library-files-heading');
+        const filesCount = document.getElementById('library-files-count');
+        const emptyTitle = document.getElementById('library-empty-title');
+        const emptyHint = document.getElementById('library-empty-hint');
         if (!grid || !empty) return;
 
+        const isRoot = !this.currentFolder || this.currentFolder === 'root' || this.currentFolder === 'all';
+
         let filtered = this.items || [];
+        if (!isRoot) {
+            filtered = filtered.filter(item => {
+                const f = item.folder || 'Umum';
+                return f.toLowerCase() === this.currentFolder.toLowerCase();
+            });
+        }
         if (this.searchQuery) {
             filtered = filtered.filter(item => {
-                const name = (item.name || '').toLowerCase();
+                const name = (item.filename || item.name || '').toLowerCase();
                 const desc = (item.description || '').toLowerCase();
                 const uploader = (item.uploader_name || '').toLowerCase();
-                return name.includes(this.searchQuery) || desc.includes(this.searchQuery) || uploader.includes(this.searchQuery);
+                const folder = (item.folder || '').toLowerCase();
+                return name.includes(this.searchQuery) || desc.includes(this.searchQuery) || uploader.includes(this.searchQuery) || folder.includes(this.searchQuery);
             });
+        }
+
+        if (filesHeading) {
+            filesHeading.textContent = isRoot ? 'Semua Berkas' : `Berkas di "${this.currentFolder}"`;
+        }
+        if (filesCount) {
+            filesCount.textContent = `${filtered.length} berkas`;
         }
 
         if (filtered.length === 0) {
             grid.innerHTML = '';
             grid.appendChild(empty);
             empty.style.display = 'flex';
+            if (emptyTitle) {
+                emptyTitle.textContent = isRoot ? 'Belum ada berkas di Pustaka' : `Folder "${this.currentFolder}" masih kosong`;
+            }
+            if (emptyHint) {
+                emptyHint.textContent = isRoot ? 'Tarik berkas atau gunakan tombol di atas untuk menitip materi/tugas.' : 'Tarik berkas atau unggah untuk menyimpan berkas di folder ini.';
+            }
             return;
         }
 
@@ -507,12 +981,14 @@ const Library = {
                 const name = btn.dataset.filename;
                 const size = parseInt(btn.dataset.size || '0', 10);
                 const uploader = btn.dataset.uploader;
+                const desc = btn.dataset.desc || '';
                 if (typeof LANX !== 'undefined' && LANX.openFileActionSheet) {
                     LANX.openFileActionSheet({
                         id: id,
                         name: name,
                         size: size,
                         sender: uploader,
+                        description: desc,
                         downloadUrl: `/api/library/download/${id}`,
                         isLibrary: true,
                     });
@@ -522,13 +998,15 @@ const Library = {
     },
 
     renderCard(item) {
-        const isFolder = !!(item.is_folder || (item.name && item.name.endsWith('.zip') && item.name.toLowerCase().includes('folder')) || !item.name.includes('.'));
+        const itemName = item.filename || item.name || 'Berkas';
+        const isFolder = !!(item.is_folder || (itemName.endsWith('.zip') && itemName.toLowerCase().includes('folder')) || !itemName.includes('.'));
         const iconSize = isFolder ? 44 : 32;
-        const icon = typeof Transfer !== 'undefined' ? Transfer.getFileIcon(item.name, isFolder, iconSize) : '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#64748B" stroke-width="1.75"><path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/><polyline points="13 2 13 9 20 9"/></svg>';
-        const canPreview = typeof Transfer !== 'undefined' && Transfer.isPreviewable(item.name);
+        const icon = typeof Transfer !== 'undefined' ? Transfer.getFileIcon(itemName, isFolder, iconSize) : '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#64748B" stroke-width="1.75"><path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/><polyline points="13 2 13 9 20 9"/></svg>';
+        const canPreview = typeof Transfer !== 'undefined' && Transfer.isPreviewable(itemName);
         const hasSelfToken = !!this.getDeleteToken(item.id);
         const isAdmin = !!LANX.isAdmin;
         const canDelete = hasSelfToken || isAdmin;
+        const itemFolder = item.folder || 'Umum';
 
         const remaining = this.getRemainingDays(item.expires_at);
         let badgeClass = 'badge-blue';
@@ -549,16 +1027,20 @@ const Library = {
                         </span>
                         <span class="dl-count-badge" title="Jumlah unduhan">
                             <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-                            ${item.downloads || 0}
+                            ${item.download_count || item.downloads || 0}
                         </span>
                     </div>
                 </div>
 
                 <div class="library-card-body">
-                    <div class="library-card-name" title="${LANX.escapeHtml(item.name)}">
-                        ${LANX.escapeHtml(item.name)}
+                    <div class="library-card-name" title="${LANX.escapeHtml(itemName)}">
+                        ${LANX.escapeHtml(itemName)}
                     </div>
                     <div class="library-card-meta">
+                        <span class="library-card-folder-badge" title="Folder: ${LANX.escapeHtml(itemFolder)}">
+                            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
+                            ${LANX.escapeHtml(itemFolder)}
+                        </span> ·
                         <span>${LANX.formatSize(item.size)}</span> ·
                         <span>Oleh: <strong>${LANX.escapeHtml(item.uploader_name || 'Tamu')}</strong></span>
                     </div>
@@ -566,7 +1048,7 @@ const Library = {
                     ${item.description ? `
                         <div class="library-desc-preview" title="Klik untuk pratinjau / lihat catatan"
                             data-id="${item.id}"
-                            data-filename="${LANX.escapeHtml(item.name)}"
+                            data-filename="${LANX.escapeHtml(itemName)}"
                             data-size="${item.size || 0}"
                             data-uploader="${LANX.escapeHtml(item.uploader_name || '')}"
                             data-desc="${LANX.escapeHtml(item.description)}"
@@ -582,35 +1064,35 @@ const Library = {
                     ${canPreview ? `
                         <button type="button" class="btn btn-sm btn-ghost btn-lib-preview"
                             data-id="${item.id}"
-                            data-filename="${LANX.escapeHtml(item.name)}"
+                            data-filename="${LANX.escapeHtml(itemName)}"
                             data-size="${item.size || 0}"
                             data-uploader="${LANX.escapeHtml(item.uploader_name || '')}"
                             data-desc="${LANX.escapeHtml(item.description || '')}">
                             Pratinjau
                         </button>
                     ` : ''}
-                    <a href="/api/library/download/${item.id}" class="btn btn-sm btn-primary btn-lib-download" download="${LANX.escapeHtml(item.name)}">
+                    <a href="/api/library/download/${item.id}" class="btn btn-sm btn-primary btn-lib-download" download="${LANX.escapeHtml(itemName)}">
                         <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
                         Unduh
                     </a>
                     ${canDelete ? `
                         <button type="button" class="btn btn-sm btn-danger-ghost btn-delete-library"
                             data-id="${item.id}"
-                            data-filename="${LANX.escapeHtml(item.name)}"
-                            data-name="${LANX.escapeHtml(item.name)}"
-                            title="Hapus berkas dari pustaka">
+                            data-filename="${LANX.escapeHtml(itemName)}"
+                            data-name="${LANX.escapeHtml(itemName)}"
+                            title="Hapus berkas ini">
                             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
                             Hapus
                         </button>
                     ` : ''}
                 </div>
-
                 <!-- Mobile Action Button (⋮) -->
                 <button type="button" class="btn-row-action btn-lib-row-action" title="Opsi Berkas"
                     data-id="${item.id}"
-                    data-filename="${LANX.escapeHtml(item.name)}"
+                    data-filename="${LANX.escapeHtml(itemName)}"
                     data-size="${item.size || 0}"
-                    data-uploader="${LANX.escapeHtml(item.uploader_name || '')}">
+                    data-uploader="${LANX.escapeHtml(item.uploader_name || '')}"
+                    data-desc="${LANX.escapeHtml(item.description || '')}">
                     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
                         <circle cx="12" cy="5" r="1"/>
                         <circle cx="12" cy="12" r="1"/>
@@ -680,9 +1162,11 @@ const Library = {
                 if (canPreview && id && filename) {
                     this.openLibraryPreview(filename, id, size, uploader, desc);
                 } else if (desc) {
-                    navigator.clipboard.writeText(desc)
-                        .then(() => LANX.showToast('Catatan disalin ke clipboard', 'success'))
-                        .catch(() => LANX.showToast(desc, 'info'));
+                    if (typeof LANX !== 'undefined' && LANX.copyToClipboard) {
+                        LANX.copyToClipboard(desc, 'Catatan disalin ke clipboard');
+                    } else if (navigator.clipboard) {
+                        navigator.clipboard.writeText(desc);
+                    }
                 }
                 return;
             }
@@ -791,6 +1275,7 @@ const Library = {
     handleEvent(msg) {
         switch (msg.type) {
             case 'library_updated':
+                this.loadFolders();
                 this.loadItems();
                 this.loadStats();
                 if (LANX.isAdmin) this.loadPending();
@@ -804,6 +1289,7 @@ const Library = {
                 break;
 
             case 'library_approval_resolved':
+                this.loadFolders();
                 this.loadItems();
                 this.loadStats();
                 if (LANX.isAdmin) this.loadPending();

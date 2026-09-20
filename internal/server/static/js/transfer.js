@@ -28,8 +28,8 @@ const Transfer = {
 
         // Click to browse file
         dropZone.addEventListener('click', (e) => {
-            // If user clicked inside drop-zone-actions, let the specific button handler run
-            if (e.target.closest('#drop-zone-actions')) return;
+            // If user clicked inside actions, desc box, or input, do not trigger file picker
+            if (e.target.closest('#drop-zone-actions, .drop-zone-desc-box, .transfer-desc-input, button, input, label')) return;
             fileInput.click();
         });
 
@@ -189,9 +189,10 @@ const Transfer = {
                 const pad = n => String(n).padStart(2, '0');
                 const timeStr = `${now.getFullYear()}${pad(now.getMonth() + 1)}${pad(now.getDate())}_${pad(now.getHours())}${pad(now.getMinutes())}${pad(now.getSeconds())}`;
                 
-                const renamedFiles = files.map(file => {
+                const renamedFiles = files.map((file, idx) => {
                     const ext = file.name.includes('.') ? file.name.split('.').pop() : 'jpg';
-                    const newName = `Foto_LANX_${timeStr}.${ext}`;
+                    const suffix = files.length > 1 ? `_${idx + 1}` : '';
+                    const newName = `Foto_LANX_${timeStr}${suffix}.${ext}`;
                     return new File([file], newName, { type: file.type });
                 });
 
@@ -283,7 +284,7 @@ const Transfer = {
         const broadcastBtn = overlay.querySelector('#btn-picker-broadcast');
         if (broadcastBtn) {
             broadcastBtn.addEventListener('click', () => {
-                const target = { id: 'all', name: 'Semua Perangkat (All Devices)' };
+                const target = { id: 'all', name: 'Semua Perangkat' };
                 if (isFolder) {
                     this.uploadFolder(folderName, files, target);
                 } else {
@@ -320,7 +321,7 @@ const Transfer = {
 
     async uploadFile(file, targetDevice) {
         if (!targetDevice) {
-            targetDevice = (typeof Devices !== 'undefined') ? (Devices.getSelectedDevice() || { id: 'all', name: 'Semua Perangkat (All Devices)' }) : { id: 'all', name: 'Semua Perangkat' };
+            targetDevice = (typeof Devices !== 'undefined') ? (Devices.getSelectedDevice() || { id: 'all', name: 'Semua Perangkat' }) : { id: 'all', name: 'Semua Perangkat' };
         }
         const transferId = this.generateId();
         const isAll = !targetDevice.id || targetDevice.id === 'all';
@@ -328,6 +329,7 @@ const Transfer = {
 
         const descInput = document.getElementById('transfer-desc-input');
         const description = descInput ? descInput.value.trim() : '';
+        if (descInput) descInput.value = '';
 
         this.activeTransfers[transferId] = {
             id: transferId,
@@ -439,7 +441,7 @@ const Transfer = {
 
     async uploadFolder(folderName, files, targetDevice) {
         if (!targetDevice) {
-            targetDevice = (typeof Devices !== 'undefined') ? (Devices.getSelectedDevice() || { id: 'all', name: 'Semua Perangkat (All Devices)' }) : { id: 'all', name: 'Semua Perangkat' };
+            targetDevice = (typeof Devices !== 'undefined') ? (Devices.getSelectedDevice() || { id: 'all', name: 'Semua Perangkat' }) : { id: 'all', name: 'Semua Perangkat' };
         }
         const transferId = this.generateId();
         const isAll = !targetDevice.id || targetDevice.id === 'all';
@@ -470,6 +472,7 @@ const Transfer = {
 
         const descInput = document.getElementById('transfer-desc-input');
         const description = descInput ? descInput.value.trim() : '';
+        if (descInput) descInput.value = '';
 
         const formData = new FormData();
         formData.append('folder_name', folderName);
@@ -734,9 +737,11 @@ const Transfer = {
                 if (canPreview && id && filename) {
                     LANX.openMediaPreview(filename, id, size, from, desc);
                 } else if (desc) {
-                    navigator.clipboard.writeText(desc)
-                        .then(() => LANX.showToast('Catatan disalin ke clipboard', 'success'))
-                        .catch(() => LANX.showToast(desc, 'info'));
+                    if (typeof LANX !== 'undefined' && LANX.copyToClipboard) {
+                        LANX.copyToClipboard(desc, 'Catatan disalin ke clipboard');
+                    } else if (navigator.clipboard) {
+                        navigator.clipboard.writeText(desc);
+                    }
                 }
                 return;
             }
@@ -879,7 +884,11 @@ const Transfer = {
                 if (this.activeTransfers[msg.transfer_id]) {
                     this.activeTransfers[msg.transfer_id].loaded = msg.bytes;
                     this.activeTransfers[msg.transfer_id].percentage = Math.round(msg.percentage);
-                    this.activeTransfers[msg.transfer_id].status = 'transferring';
+                    if (msg.status) {
+                        this.activeTransfers[msg.transfer_id].status = msg.status;
+                    } else {
+                        this.activeTransfers[msg.transfer_id].status = 'transferring';
+                    }
                     this.renderActiveTransfers();
                 }
                 break;

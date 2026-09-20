@@ -30,11 +30,12 @@ type Device struct {
 
 // Registry maintains a thread-safe, persistent database of devices.
 type Registry struct {
-	mu          sync.RWMutex
-	devices     map[string]*Device
-	hostDevice  *Device
-	storagePath string
-	onEvent     func(eventType string, data any)
+	mu             sync.RWMutex
+	devices        map[string]*Device
+	hostDevice     *Device
+	storagePath    string
+	onEvent        func(eventType string, data any)
+	adminValidator func(token string) bool // Validates admin token
 }
 
 // NewRegistry creates a new device registry with optional persistent storage path.
@@ -50,6 +51,23 @@ func NewRegistry(storagePath string, onEvent func(string, any)) *Registry {
 	}
 
 	return r
+}
+
+// SetAdminValidator sets the function used to validate admin tokens.
+func (r *Registry) SetAdminValidator(fn func(token string) bool) {
+	r.adminValidator = fn
+}
+
+// isAdminRequest checks X-Admin-Token header or admin_token query param.
+func (r *Registry) isAdminRequest(req *http.Request) bool {
+	if r.adminValidator == nil {
+		return false
+	}
+	token := req.Header.Get("X-Admin-Token")
+	if token == "" {
+		token = req.URL.Query().Get("admin_token")
+	}
+	return r.adminValidator(token)
 }
 
 // SetHostDevice sets the current host server as a visible device.
@@ -361,6 +379,13 @@ type updateProfilePayload struct {
 }
 
 func (r *Registry) handleUpdateDeviceProfile(w http.ResponseWriter, req *http.Request) {
+	if !r.isAdminRequest(req) {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusUnauthorized)
+		json.NewEncoder(w).Encode(map[string]string{"error": "Unauthorized: Mode Admin diperlukan"})
+		return
+	}
+
 	id := req.PathValue("id")
 	if id == "" {
 		w.Header().Set("Content-Type", "application/json")
@@ -411,6 +436,17 @@ func (r *Registry) handleSelfProfile(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 
+	r.mu.RLock()
+	isHost := r.hostDevice != nil && r.hostDevice.ID == payload.ID
+	r.mu.RUnlock()
+
+	if isHost && !r.isAdminRequest(req) {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusUnauthorized)
+		json.NewEncoder(w).Encode(map[string]string{"error": "Unauthorized: Mode Admin diperlukan untuk mengubah nama server"})
+		return
+	}
+
 	updated, err := r.UpdateProfile(payload.ID, payload.Name, payload.Platform)
 	if err != nil {
 		w.Header().Set("Content-Type", "application/json")
@@ -424,6 +460,13 @@ func (r *Registry) handleSelfProfile(w http.ResponseWriter, req *http.Request) {
 }
 
 func (r *Registry) handleDeleteDevice(w http.ResponseWriter, req *http.Request) {
+	if !r.isAdminRequest(req) {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusUnauthorized)
+		json.NewEncoder(w).Encode(map[string]string{"error": "Unauthorized: Mode Admin diperlukan"})
+		return
+	}
+
 	id := req.PathValue("id")
 	if id == "" {
 		w.Header().Set("Content-Type", "application/json")
@@ -442,6 +485,13 @@ type setRolePayload struct {
 }
 
 func (r *Registry) handleSetRole(w http.ResponseWriter, req *http.Request) {
+	if !r.isAdminRequest(req) {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusUnauthorized)
+		json.NewEncoder(w).Encode(map[string]string{"error": "Unauthorized: Mode Admin diperlukan"})
+		return
+	}
+
 	id := req.PathValue("id")
 	if id == "" {
 		w.Header().Set("Content-Type", "application/json")

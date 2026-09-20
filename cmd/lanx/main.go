@@ -115,7 +115,8 @@ func main() {
 				// Allow client UI to complete initial connection
 				time.Sleep(600 * time.Millisecond)
 				for _, it := range items {
-					if it.Type == "file" {
+					switch it.Type {
+					case "file":
 						wsHub.SendToDevice(targetID, "transfer_complete", map[string]any{
 							"transfer_id":      it.TransferID,
 							"download_id":      it.DownloadID,
@@ -129,7 +130,7 @@ func main() {
 							"is_offline_queue": true,
 							"queued_at":        it.Timestamp,
 						})
-					} else if it.Type == "text" {
+					case "text":
 						wsHub.SendToDevice(targetID, "text_received", map[string]any{
 							"target_device_id": it.TargetDeviceID,
 							"text":             it.TextContent,
@@ -152,6 +153,14 @@ func main() {
 
 	// Create transfer manager
 	transferMgr := transfer.NewManager(func(t *transfer.Transfer) {
+		if t.Status == transfer.StatusFailed {
+			wsHub.Broadcast("transfer_failed", map[string]any{
+				"transfer_id": t.ID,
+				"filename":    t.Filename,
+				"reason":      t.Error,
+			})
+			return
+		}
 		wsHub.Broadcast("transfer_progress", map[string]any{
 			"transfer_id": t.ID,
 			"filename":    t.Filename,
@@ -189,9 +198,16 @@ func main() {
 	libraryMgr.StartAutoCleaner(15 * time.Minute)
 	libraryHandler := library.NewHandler(libraryMgr, cfg, cfg.GetLibraryPath())
 
+	// Wire admin validation from library handler to device registry and transfer handler
+	registry.SetAdminValidator(libraryHandler.ValidateAdminToken)
+	transferHandler.SetAdminValidator(libraryHandler.ValidateAdminToken)
+
 	// Create HTTP server
 	srv := server.New(cfg, logger)
 	srv.SetDeviceRegistry(registry)
+	srv.SetOnSettingsUpdated(func(updatedCfg *config.Config) {
+		transferHandler.SetAutoDeleteDelivered(updatedCfg.AutoDeleteDelivered)
+	})
 	mux := srv.Mux()
 
 	// Register all routes

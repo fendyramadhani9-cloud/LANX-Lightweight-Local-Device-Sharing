@@ -360,6 +360,7 @@ func TestStorageStatsAndClean(t *testing.T) {
 	handler.store.Add("file_to_clean.dat", filePath, 30)
 
 	mux := http.NewServeMux()
+	handler.SetAdminValidator(func(token string) bool { return token == "admin" })
 	handler.RegisterRoutes(mux)
 
 	// Test GET /api/storage/stats
@@ -379,6 +380,7 @@ func TestStorageStatsAndClean(t *testing.T) {
 
 	// Test POST /api/storage/clean
 	reqClean := httptest.NewRequest("POST", "/api/storage/clean", nil)
+	reqClean.Header.Set("X-Admin-Token", "admin")
 	wClean := httptest.NewRecorder()
 	mux.ServeHTTP(wClean, reqClean)
 	if wClean.Code != http.StatusOK {
