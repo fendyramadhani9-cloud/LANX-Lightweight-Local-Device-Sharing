@@ -100,11 +100,14 @@ func (m *Manager) UpdateProgress(id string, loaded int64) {
 }
 
 // Complete marks a transfer as completed.
-func (m *Manager) Complete(id string, downloadID string) {
+func (m *Manager) Complete(id string, downloadID string, finalSize ...int64) {
 	m.mu.Lock()
 	t, ok := m.active[id]
 	var snapshot Transfer
 	if ok {
+		if len(finalSize) > 0 && finalSize[0] > 0 {
+			t.Size = finalSize[0]
+		}
 		t.Status = StatusCompleted
 		t.Percentage = 100
 		t.Loaded = t.Size

@@ -5,6 +5,7 @@ import (
 	"io/fs"
 	"net/http"
 	"strings"
+	"time"
 
 	"github.com/fendy/lanx/internal/config"
 )
@@ -123,23 +124,38 @@ func (s *Server) handleGetSettings(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, resp)
 }
 
+type updateSettingsRequest struct {
+	DeviceName          *string `json:"device_name"`
+	Theme               *string `json:"theme"`
+	PairingReq          *bool   `json:"pairing_req"`
+	AutoDeleteDelivered *bool   `json:"auto_delete_delivered"`
+}
+
 func (s *Server) handleUpdateSettings(w http.ResponseWriter, r *http.Request) {
-	var req settingsResponse
+	var req updateSettingsRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		writeError(w, http.StatusBadRequest, "Invalid request body")
 		return
 	}
 
-	name := strings.TrimSpace(req.DeviceName)
+	var name string
+	if req.DeviceName != nil {
+		name = strings.TrimSpace(*req.DeviceName)
+	}
+
 	if err := s.cfg.Update(func(c *config.Config) {
 		if name != "" && len(name) <= 64 {
 			c.DeviceName = name
 		}
-		if req.Theme == "light" || req.Theme == "dark" {
-			c.Theme = req.Theme
+		if req.Theme != nil && (*req.Theme == "light" || *req.Theme == "dark") {
+			c.Theme = *req.Theme
 		}
-		c.PairingReq = req.PairingReq
-		c.AutoDeleteDelivered = req.AutoDeleteDelivered
+		if req.PairingReq != nil {
+			c.PairingReq = *req.PairingReq
+		}
+		if req.AutoDeleteDelivered != nil {
+			c.AutoDeleteDelivered = *req.AutoDeleteDelivered
+		}
 	}); err != nil {
 		writeError(w, http.StatusInternalServerError, "Failed to save settings")
 		return
@@ -171,14 +187,20 @@ func (s *Server) handleAdminLogin(w http.ResponseWriter, r *http.Request) {
 
 	pin := strings.TrimSpace(req.PIN)
 	if pin == "" || pin != s.cfg.GetAdminPIN() {
+		time.Sleep(500 * time.Millisecond)
 		writeError(w, http.StatusUnauthorized, "PIN Admin salah")
 		return
 	}
 
+	token := s.cfg.GetAdminPIN()
+	if s.adminSessionCreator != nil {
+		token = s.adminSessionCreator()
+	}
+
 	writeJSON(w, http.StatusOK, map[string]any{
 		"status":      "ok",
-		"token":       s.cfg.GetAdminPIN(),
-		"admin_token": s.cfg.GetAdminPIN(),
+		"token":       token,
+		"admin_token": token,
 		"message":     "Login admin berhasil",
 	})
 }
@@ -193,14 +215,25 @@ type adminConfigResponse struct {
 
 func (s *Server) handleGetAdminConfig(w http.ResponseWriter, r *http.Request) {
 	token := r.Header.Get("X-Admin-Token")
-	if token == "" || token != s.cfg.GetAdminPIN() {
+	if token == "" {
+		token = r.URL.Query().Get("admin_token")
+	}
+
+	valid := false
+	if s.adminValidator != nil {
+		valid = s.adminValidator(token)
+	} else {
+		valid = token != "" && token == s.cfg.GetAdminPIN()
+	}
+
+	if !valid {
 		writeError(w, http.StatusUnauthorized, "Unauthorized: Mode Admin diperlukan")
 		return
 	}
 
 	writeJSON(w, http.StatusOK, adminConfigResponse{
-		Token:                  s.cfg.GetAdminPIN(),
-		AdminToken:             s.cfg.GetAdminPIN(),
+		Token:                  token,
+		AdminToken:             token,
 		AdminPIN:               s.cfg.GetAdminPIN(),
 		LibraryQuotaBytes:      s.cfg.GetLibraryQuotaBytes(),
 		ApprovalThresholdBytes: s.cfg.GetApprovalThresholdBytes(),
@@ -225,8 +258,16 @@ func (s *Server) handleUpdateAdminConfig(w http.ResponseWriter, r *http.Request)
 	if token == "" {
 		token = req.AdminToken
 	}
-	if token != s.cfg.GetAdminPIN() {
-		writeError(w, http.StatusUnauthorized, "Unauthorized: PIN Admin tidak sah")
+
+	valid := false
+	if s.adminValidator != nil {
+		valid = s.adminValidator(token)
+	} else {
+		valid = token != "" && token == s.cfg.GetAdminPIN()
+	}
+
+	if !valid {
+		writeError(w, http.StatusUnauthorized, "Unauthorized: PIN/Token Admin tidak sah")
 		return
 	}
 
@@ -246,8 +287,8 @@ func (s *Server) handleUpdateAdminConfig(w http.ResponseWriter, r *http.Request)
 	}
 
 	writeJSON(w, http.StatusOK, adminConfigResponse{
-		Token:                  s.cfg.GetAdminPIN(),
-		AdminToken:             s.cfg.GetAdminPIN(),
+		Token:                  token,
+		AdminToken:             token,
 		AdminPIN:               s.cfg.GetAdminPIN(),
 		LibraryQuotaBytes:      s.cfg.GetLibraryQuotaBytes(),
 		ApprovalThresholdBytes: s.cfg.GetApprovalThresholdBytes(),

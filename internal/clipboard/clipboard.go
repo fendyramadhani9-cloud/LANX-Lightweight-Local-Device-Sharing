@@ -218,8 +218,22 @@ func (h *Handler) handleSendClipboard(w http.ResponseWriter, r *http.Request) {
 	}
 
 	dev, ok := h.registry.Get(req.TargetDeviceID)
-	if !ok || !dev.Online {
-		writeJSON(w, http.StatusNotFound, map[string]string{"error": "Device not found or offline"})
+	if !ok {
+		writeJSON(w, http.StatusNotFound, map[string]string{"error": "Perangkat tujuan tidak ditemukan"})
+		return
+	}
+
+	if !dev.Online {
+		if h.mailbox != nil {
+			h.mailbox.AddText(content, req.TargetDeviceID, fromID, fromDevice)
+			writeJSON(w, http.StatusOK, map[string]any{
+				"status":         "queued",
+				"offline_queued": true,
+				"message":        "Papan klip disimpan di server dan akan terkirim saat perangkat online",
+			})
+			return
+		}
+		writeJSON(w, http.StatusNotFound, map[string]string{"error": "Perangkat sedang offline"})
 		return
 	}
 

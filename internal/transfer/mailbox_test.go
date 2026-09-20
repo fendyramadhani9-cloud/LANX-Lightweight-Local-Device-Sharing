@@ -60,4 +60,10 @@ func TestMailboxOperations(t *testing.T) {
 	if pending2[0].ID != item2.ID {
 		t.Errorf("expected item2 ID in reloaded mailbox, got %s", pending2[0].ID)
 	}
+
+	// Clean delivered items
+	cleaned := mb2.CleanDelivered(0)
+	if cleaned != 1 {
+		t.Errorf("expected 1 cleaned item, got %d", cleaned)
+	}
 }

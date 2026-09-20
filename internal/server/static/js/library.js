@@ -920,7 +920,7 @@ const Library = {
         const filesCount = document.getElementById('library-files-count');
         const emptyTitle = document.getElementById('library-empty-title');
         const emptyHint = document.getElementById('library-empty-hint');
-        if (!grid || !empty) return;
+        if (!grid) return;
 
         const isRoot = !this.currentFolder || this.currentFolder === 'root' || this.currentFolder === 'all';
 
@@ -950,18 +950,21 @@ const Library = {
 
         if (filtered.length === 0) {
             grid.innerHTML = '';
-            grid.appendChild(empty);
-            empty.style.display = 'flex';
-            if (emptyTitle) {
-                emptyTitle.textContent = isRoot ? 'Belum ada berkas di Pustaka' : `Folder "${this.currentFolder}" masih kosong`;
-            }
-            if (emptyHint) {
-                emptyHint.textContent = isRoot ? 'Tarik berkas atau gunakan tombol di atas untuk menitip materi/tugas.' : 'Tarik berkas atau unggah untuk menyimpan berkas di folder ini.';
+            grid.style.display = 'none';
+            if (empty) {
+                empty.style.display = 'flex';
+                if (emptyTitle) {
+                    emptyTitle.textContent = isRoot ? 'Belum ada berkas di Pustaka' : `Folder "${this.currentFolder}" masih kosong`;
+                }
+                if (emptyHint) {
+                    emptyHint.textContent = isRoot ? 'Tarik berkas atau gunakan tombol di atas untuk menitip materi/tugas.' : 'Tarik berkas atau unggah untuk menyimpan berkas di folder ini.';
+                }
             }
             return;
         }
 
-        empty.style.display = 'none';
+        if (empty) empty.style.display = 'none';
+        grid.style.display = '';
         const cardsHtml = filtered.map(item => this.renderCard(item)).join('');
         grid.innerHTML = cardsHtml;
 

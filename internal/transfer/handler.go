@@ -481,7 +481,7 @@ func (h *Handler) handleUploadFolder(w http.ResponseWriter, r *http.Request) {
 	downloadID := h.store.Add(folderName, destPath, zipSize, targetDeviceID)
 
 	// Complete transfer
-	h.mgr.Complete(t.ID, downloadID)
+	h.mgr.Complete(t.ID, downloadID, zipSize)
 
 	// Queue in mailbox if target device is currently offline
 	offlineQueued := false
@@ -555,8 +555,8 @@ func (h *Handler) handleDownload(w http.ResponseWriter, r *http.Request) {
 	// If direct 1-to-1 transfer to specific device and actual download (not preview)
 	if !isPreview && h.autoDeleteDelivered && sf.TargetDeviceID != "" && sf.TargetDeviceID != "all" {
 		go func(filePath string, fileID string) {
-			// Grace period of 60 seconds to allow large file downloads to finish
-			time.Sleep(60 * time.Second)
+			// Grace period of 15 minutes to allow large file downloads to finish completely
+			time.Sleep(15 * time.Minute)
 			_ = os.Remove(filePath)
 			h.store.Remove(fileID)
 		}(sf.Path, sf.ID)

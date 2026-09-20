@@ -138,6 +138,40 @@ Penerapan pada server Proxmox atau Linux sangat ideal untuk laboratorium kompute
    sudo journalctl -u lanx -f     # Memantau log aktivitas real-time
    ```
 
+#### Metode Alpine Linux / Proxmox LXC (OpenRC Service)
+
+Bagi pengguna Proxmox LXC berbasis **Alpine Linux**, manajemen layanan menggunakan sistem init **OpenRC**:
+
+1. **Pemasangan berkas biner dan init script:**
+   ```sh
+   # Salin biner ke direktori eksekusi sistem
+   chmod +x lanx
+   cp lanx /usr/local/bin/lanx
+
+   # Pasang OpenRC init script
+   cp lanx.initd /etc/init.d/lanx
+   chmod +x /etc/init.d/lanx
+
+   # Siapkan direktori data
+   mkdir -p /var/lib/lanx
+   ```
+
+2. **Mengaktifkan dan menjalankan layanan:**
+   ```sh
+   # Tambahkan ke runlevel default agar otomatis mulai saat boot
+   rc-update add lanx default
+
+   # Jalankan layanan sekarang
+   rc-service lanx start
+   ```
+
+3. **Pemeliharaan Layanan:**
+   ```sh
+   rc-service lanx status     # Memeriksa status proses
+   rc-service lanx restart    # Memuat ulang aplikasi
+   tail -f /var/log/lanx.log  # Memantau log aktivitas
+   ```
+
 #### Metode Docker & Docker Compose
 
 ```bash

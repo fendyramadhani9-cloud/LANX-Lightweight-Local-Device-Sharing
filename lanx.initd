@@ -1,0 +1,21 @@
+#!/sbin/openrc-run
+
+name="lanx"
+description="LANX — Lightweight Local Device Sharing Service"
+command="/usr/local/bin/lanx"
+command_args="--port ${LANX_PORT:-8080} --data ${LANX_DATA:-/var/lib/lanx}"
+command_user="${LANX_USER:-root}"
+command_background="yes"
+pidfile="/run/${RC_SVCNAME}.pid"
+output_log="/var/log/lanx.log"
+error_log="/var/log/lanx.err"
+
+depend() {
+    need net
+    after firewall
+}
+
+start_pre() {
+    checkpath -d -m 0755 -o "${command_user}" "${LANX_DATA:-/var/lib/lanx}"
+    checkpath -f -m 0644 -o "${command_user}" "${output_log}" "${error_log}"
+}

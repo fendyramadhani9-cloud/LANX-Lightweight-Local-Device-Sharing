@@ -20,12 +20,14 @@ var webFS embed.FS
 
 // Server is the main LANX HTTP server.
 type Server struct {
-	cfg               *config.Config
-	mux               *http.ServeMux
-	srv               *http.Server
-	logger            *log.Logger
-	devices           *device.Registry
-	onSettingsUpdated func(cfg *config.Config)
+	cfg                 *config.Config
+	mux                 *http.ServeMux
+	srv                 *http.Server
+	logger              *log.Logger
+	devices             *device.Registry
+	onSettingsUpdated   func(cfg *config.Config)
+	adminSessionCreator func() string
+	adminValidator      func(token string) bool
 }
 
 // New creates a new Server instance.
@@ -47,6 +49,12 @@ func (s *Server) SetDeviceRegistry(r *device.Registry) {
 // SetOnSettingsUpdated sets callback when server settings are updated.
 func (s *Server) SetOnSettingsUpdated(fn func(cfg *config.Config)) {
 	s.onSettingsUpdated = fn
+}
+
+// SetAdminAuth sets admin session generator and validator callbacks.
+func (s *Server) SetAdminAuth(creator func() string, validator func(token string) bool) {
+	s.adminSessionCreator = creator
+	s.adminValidator = validator
 }
 
 // Start begins listening on the configured port.

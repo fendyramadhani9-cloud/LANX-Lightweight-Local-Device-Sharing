@@ -92,6 +92,7 @@ func main() {
 	// Create mailbox for offline store-and-forward transfers
 	mailboxPath := filepath.Join(cfg.DataDir(), "mailbox.json")
 	mailbox := transfer.NewMailbox(mailboxPath)
+	mailbox.StartAutoCleaner(30*time.Minute, 24*time.Hour)
 
 	// Register WebSocket client hooks for browser device discovery
 	wsHub.SetClientHooks(func(id, clientName, platform, ip string) {
@@ -205,6 +206,7 @@ func main() {
 	// Create HTTP server
 	srv := server.New(cfg, logger)
 	srv.SetDeviceRegistry(registry)
+	srv.SetAdminAuth(libraryHandler.CreateAdminSession, libraryHandler.ValidateAdminToken)
 	srv.SetOnSettingsUpdated(func(updatedCfg *config.Config) {
 		transferHandler.SetAutoDeleteDelivered(updatedCfg.AutoDeleteDelivered)
 	})

@@ -205,29 +205,44 @@ const Transfer = {
     // ─── File & Folder Handling ──────────────────────────
 
     handleFiles(files) {
+        const descInput = document.getElementById('transfer-desc-input');
+        const description = descInput ? descInput.value.trim() : '';
+        if (descInput) descInput.value = '';
+
         const device = Devices.getSelectedDevice();
         if (!device) {
-            this.showDevicePicker(files, false);
+            this.showDevicePicker(files, false, '', description);
             return;
         }
 
-        files.forEach(file => this.uploadFile(file, device));
+        files.forEach(file => this.uploadFile(file, device, description));
     },
 
     handleFolder(folderName, files) {
+        const descInput = document.getElementById('transfer-desc-input');
+        const description = descInput ? descInput.value.trim() : '';
+        if (descInput) descInput.value = '';
+
         const device = Devices.getSelectedDevice();
         if (!device) {
-            this.showDevicePicker(files, true, folderName);
+            this.showDevicePicker(files, true, folderName, description);
             return;
         }
 
-        this.uploadFolder(folderName, files, device);
+        this.uploadFolder(folderName, files, device, description);
     },
 
-    showDevicePicker(files, isFolder = false, folderName = '') {
+    showDevicePicker(files, isFolder = false, folderName = '', preloadedDesc = '') {
         const visible = (typeof Devices !== 'undefined') ? Devices.getVisibleDevices() : [];
         const onlineDevices = visible.filter(d => d.online !== false);
         const offlineDevices = visible.filter(d => d.online === false);
+
+        let description = preloadedDesc;
+        if (!description) {
+            const descInput = document.getElementById('transfer-desc-input');
+            description = descInput ? descInput.value.trim() : '';
+            if (descInput) descInput.value = '';
+        }
 
         const overlay = document.createElement('div');
         overlay.className = 'device-picker-overlay';
@@ -286,9 +301,9 @@ const Transfer = {
             broadcastBtn.addEventListener('click', () => {
                 const target = { id: 'all', name: 'Semua Perangkat' };
                 if (isFolder) {
-                    this.uploadFolder(folderName, files, target);
+                    this.uploadFolder(folderName, files, target, description);
                 } else {
-                    files.forEach(file => this.uploadFile(file, target));
+                    files.forEach(file => this.uploadFile(file, target, description));
                 }
                 overlay.remove();
             });
@@ -305,9 +320,9 @@ const Transfer = {
                 const device = Devices.getDeviceById(id);
                 if (device) {
                     if (isFolder) {
-                        this.uploadFolder(folderName, files, device);
+                        this.uploadFolder(folderName, files, device, description);
                     } else {
-                        files.forEach(file => this.uploadFile(file, device));
+                        files.forEach(file => this.uploadFile(file, device, description));
                     }
                 }
                 overlay.remove();
@@ -319,7 +334,7 @@ const Transfer = {
 
     // ─── Upload Single File with Speedometer ─────────────
 
-    async uploadFile(file, targetDevice) {
+    async uploadFile(file, targetDevice, customDesc) {
         if (!targetDevice) {
             targetDevice = (typeof Devices !== 'undefined') ? (Devices.getSelectedDevice() || { id: 'all', name: 'Semua Perangkat' }) : { id: 'all', name: 'Semua Perangkat' };
         }
@@ -327,9 +342,14 @@ const Transfer = {
         const isAll = !targetDevice.id || targetDevice.id === 'all';
         const targetDisplayName = isAll ? 'Semua Perangkat' : (targetDevice.name || 'Perangkat');
 
-        const descInput = document.getElementById('transfer-desc-input');
-        const description = descInput ? descInput.value.trim() : '';
-        if (descInput) descInput.value = '';
+        let description = '';
+        if (typeof customDesc === 'string') {
+            description = customDesc;
+        } else {
+            const descInput = document.getElementById('transfer-desc-input');
+            description = descInput ? descInput.value.trim() : '';
+            if (descInput) descInput.value = '';
+        }
 
         this.activeTransfers[transferId] = {
             id: transferId,
@@ -426,6 +446,10 @@ const Transfer = {
                 if (this.activeTransfers[transferId]) this.activeTransfers[transferId].status = 'failed';
                 LANX.showToast(`Gagal mengirim ${file.name}`, 'error');
                 this.renderActiveTransfers();
+                setTimeout(() => {
+                    delete this.activeTransfers[transferId];
+                    this.renderActiveTransfers();
+                }, 8000);
             });
 
             xhr.open('POST', '/api/upload');
@@ -434,12 +458,16 @@ const Transfer = {
             if (this.activeTransfers[transferId]) this.activeTransfers[transferId].status = 'failed';
             this.renderActiveTransfers();
             LANX.showToast(`Gagal mengirim ${file.name}`, 'error');
+            setTimeout(() => {
+                delete this.activeTransfers[transferId];
+                this.renderActiveTransfers();
+            }, 8000);
         }
     },
 
     // ─── Upload Folder Auto-Zip with Speedometer ─────────
 
-    async uploadFolder(folderName, files, targetDevice) {
+    async uploadFolder(folderName, files, targetDevice, customDesc) {
         if (!targetDevice) {
             targetDevice = (typeof Devices !== 'undefined') ? (Devices.getSelectedDevice() || { id: 'all', name: 'Semua Perangkat' }) : { id: 'all', name: 'Semua Perangkat' };
         }
@@ -448,6 +476,15 @@ const Transfer = {
         const targetDisplayName = isAll ? 'Semua Perangkat' : (targetDevice.name || 'Perangkat');
         const totalSize = files.reduce((acc, f) => acc + (f.size || 0), 0);
         const displayZipName = folderName.endsWith('.zip') ? folderName : `${folderName}.zip`;
+
+        let description = '';
+        if (typeof customDesc === 'string') {
+            description = customDesc;
+        } else {
+            const descInput = document.getElementById('transfer-desc-input');
+            description = descInput ? descInput.value.trim() : '';
+            if (descInput) descInput.value = '';
+        }
 
         this.activeTransfers[transferId] = {
             id: transferId,
@@ -554,6 +591,10 @@ const Transfer = {
                 if (this.activeTransfers[transferId]) this.activeTransfers[transferId].status = 'failed';
                 LANX.showToast(`Gagal mengirim folder ${folderName}`, 'error');
                 this.renderActiveTransfers();
+                setTimeout(() => {
+                    delete this.activeTransfers[transferId];
+                    this.renderActiveTransfers();
+                }, 8000);
             });
 
             xhr.open('POST', '/api/upload-folder');
@@ -562,6 +603,10 @@ const Transfer = {
             if (this.activeTransfers[transferId]) this.activeTransfers[transferId].status = 'failed';
             this.renderActiveTransfers();
             LANX.showToast(`Gagal mengirim folder ${folderName}`, 'error');
+            setTimeout(() => {
+                delete this.activeTransfers[transferId];
+                this.renderActiveTransfers();
+            }, 8000);
         }
     },
 
@@ -579,6 +624,17 @@ const Transfer = {
 
         section.style.display = 'block';
         container.innerHTML = transfers.map(t => this.renderTransferItem(t, true)).join('');
+
+        container.querySelectorAll('.btn-dismiss-active').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                const id = btn.dataset.id;
+                if (id && this.activeTransfers[id]) {
+                    delete this.activeTransfers[id];
+                    this.renderActiveTransfers();
+                }
+            });
+        });
     },
 
     renderTransferItem(transfer, isActive = false) {
@@ -611,7 +667,7 @@ const Transfer = {
                 `;
                 break;
             case 'failed':
-                statusHtml = `<span class="transfer-status failed">Gagal</span>`;
+                statusHtml = `<span class="transfer-status failed">Gagal ${isActive ? `<button type="button" class="btn-dismiss-active" data-id="${transfer.id}" title="Tutup" style="margin-left:4px;border:none;background:transparent;color:inherit;cursor:pointer;font-size:12px;font-weight:700;">✕</button>` : ''}</span>`;
                 break;
         }
 
@@ -826,16 +882,17 @@ const Transfer = {
         const filesEmpty = document.getElementById('files-empty');
 
         if (!items || items.length === 0) {
-            if (historyContainer && historyEmpty) {
+            if (historyContainer) {
                 historyContainer.innerHTML = '';
-                historyContainer.appendChild(historyEmpty);
-                historyEmpty.style.display = 'block';
+                historyContainer.style.display = 'none';
             }
-            if (filesContainer && filesEmpty) {
+            if (historyEmpty) historyEmpty.style.display = 'block';
+
+            if (filesContainer) {
                 filesContainer.innerHTML = '';
-                filesContainer.appendChild(filesEmpty);
-                filesEmpty.style.display = 'block';
+                filesContainer.style.display = 'none';
             }
+            if (filesEmpty) filesEmpty.style.display = 'block';
             return;
         }
 
@@ -843,8 +900,14 @@ const Transfer = {
         if (filesEmpty) filesEmpty.style.display = 'none';
 
         const html = items.map(t => this.renderTransferItem(t, false)).join('');
-        if (historyContainer) historyContainer.innerHTML = html;
-        if (filesContainer) filesContainer.innerHTML = html;
+        if (historyContainer) {
+            historyContainer.style.display = '';
+            historyContainer.innerHTML = html;
+        }
+        if (filesContainer) {
+            filesContainer.style.display = '';
+            filesContainer.innerHTML = html;
+        }
 
         this.attachRowActionListeners();
     },

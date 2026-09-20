@@ -574,6 +574,7 @@ const LANX = {
         const btnList = document.getElementById('btn-view-list');
         const filesContainer = document.getElementById('files-container');
         const historyContainer = document.getElementById('transfer-history');
+        const libraryGrid = document.getElementById('library-grid');
 
         if (mode === 'list') {
             btnList?.classList.add('active');
@@ -582,6 +583,8 @@ const LANX = {
             filesContainer?.classList.add('view-mode-list');
             historyContainer?.classList.remove('view-mode-grid');
             historyContainer?.classList.add('view-mode-list');
+            libraryGrid?.classList.remove('view-mode-grid');
+            libraryGrid?.classList.add('view-mode-list');
         } else {
             btnGrid?.classList.add('active');
             btnList?.classList.remove('active');
@@ -589,6 +592,8 @@ const LANX = {
             filesContainer?.classList.add('view-mode-grid');
             historyContainer?.classList.remove('view-mode-list');
             historyContainer?.classList.add('view-mode-grid');
+            libraryGrid?.classList.remove('view-mode-list');
+            libraryGrid?.classList.add('view-mode-grid');
         }
     },
 
@@ -1140,6 +1145,11 @@ const LANX = {
         const container = document.getElementById('qr-container');
         const urlEl = document.getElementById('pair-url');
 
+        if (this._qrBlobUrl) {
+            URL.revokeObjectURL(this._qrBlobUrl);
+            this._qrBlobUrl = null;
+        }
+
         container.innerHTML = '<div class="qr-loading">Membuat QR code...</div>';
         modal.style.display = 'flex';
 
@@ -1147,8 +1157,8 @@ const LANX = {
             const res = await fetch('/api/pair/qr');
             if (res.ok) {
                 const blob = await res.blob();
-                const url = URL.createObjectURL(blob);
-                container.innerHTML = `<img src="${url}" alt="QR Code" width="200" height="200">`;
+                this._qrBlobUrl = URL.createObjectURL(blob);
+                container.innerHTML = `<img src="${this._qrBlobUrl}" alt="QR Code" width="200" height="200">`;
 
                 // Show URL
                 const host = window.location.host;
@@ -1344,7 +1354,12 @@ const LANX = {
     },
 
     closeModal(modal) {
+        if (!modal) return;
         modal.style.display = 'none';
+        if (modal.id === 'pair-modal' && this._qrBlobUrl) {
+            URL.revokeObjectURL(this._qrBlobUrl);
+            this._qrBlobUrl = null;
+        }
     },
 
     // ─── WebSocket ───────────────────────────────────────

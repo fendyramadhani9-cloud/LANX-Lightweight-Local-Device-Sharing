@@ -129,6 +129,41 @@ func (mb *Mailbox) MarkDelivered(id string) bool {
 	return found
 }
 
+// CleanDelivered removes delivered items older than maxAge.
+func (mb *Mailbox) CleanDelivered(maxAge time.Duration) int {
+	mb.mu.Lock()
+	now := time.Now().UnixMilli()
+	maxAgeMs := maxAge.Milliseconds()
+	var kept []*MailboxItem
+	cleaned := 0
+
+	for _, it := range mb.items {
+		if it.Delivered && (now-it.DeliveredAt >= maxAgeMs) {
+			cleaned++
+			continue
+		}
+		kept = append(kept, it)
+	}
+	mb.items = kept
+	mb.mu.Unlock()
+
+	if cleaned > 0 {
+		mb.save()
+	}
+	return cleaned
+}
+
+// StartAutoCleaner starts periodic pruning of delivered mailbox items.
+func (mb *Mailbox) StartAutoCleaner(interval, maxAge time.Duration) {
+	go func() {
+		ticker := time.NewTicker(interval)
+		defer ticker.Stop()
+		for range ticker.C {
+			mb.CleanDelivered(maxAge)
+		}
+	}()
+}
+
 // CountPendingForDevice returns the count of undelivered items for targetDeviceID.
 func (mb *Mailbox) CountPendingForDevice(targetDeviceID string) int {
 	mb.mu.RLock()

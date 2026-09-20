@@ -241,13 +241,19 @@ const Devices = {
 
         if (!visible || visible.length === 0) {
             grid.innerHTML = '';
-            grid.appendChild(empty);
-            empty.style.display = 'flex';
-            this.setupEmptyState();
+            grid.style.display = 'none';
+            if (empty) {
+                empty.style.display = 'flex';
+                this.setupEmptyState();
+            }
+            if (typeof LANX !== 'undefined' && LANX.updateSidebarCounters) {
+                LANX.updateSidebarCounters();
+            }
             return;
         }
 
-        empty.style.display = 'none';
+        if (empty) empty.style.display = 'none';
+        grid.style.display = '';
 
         // Render Broadcast Card first, followed by individual devices
         const isAllSelected = this.sendMode === 'all' || this.selectedDevice === 'all';

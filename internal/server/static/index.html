@@ -7,9 +7,9 @@
     <title>LANX — Local Device Sharing</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link rel="icon" type="image/svg+xml" href="/favicon.svg">
-    <link rel="stylesheet" href="/css/style.css?v=20260920-13">
+    <link rel="stylesheet" href="/css/style.css?v=20260920-14">
 </head>
 <body>
     <!-- App Shell Layout -->
@@ -300,11 +300,10 @@
                                 <h3 class="section-title">Berkas Terkini</h3>
                                 <button type="button" class="btn-link" id="btn-view-all-recent">Lihat Riwayat &rarr;</button>
                             </div>
-                            <div class="files-container" id="files-container">
-                                <div class="empty-state" id="files-empty">
-                                    <p class="empty-state-text">Belum ada berkas terkirim</p>
-                                    <p class="empty-state-hint">Tarik berkas atau klik tombol upload untuk mulai berbagi.</p>
-                                </div>
+                            <div class="files-container" id="files-container"></div>
+                            <div class="empty-state" id="files-empty">
+                                <p class="empty-state-text">Belum ada berkas terkirim</p>
+                                <p class="empty-state-hint">Tarik berkas atau klik tombol upload untuk mulai berbagi.</p>
                             </div>
                         </div>
                     </div>
@@ -318,10 +317,9 @@
                                 <h3 class="section-title">Riwayat Lengkap Transfer</h3>
                                 <span class="section-subtitle">Daftar semua transfer berkas yang masuk dan keluar</span>
                             </div>
-                            <div class="transfer-history" id="transfer-history">
-                                <div class="empty-state" id="history-empty">
-                                    <p class="empty-state-text">Belum ada riwayat transfer</p>
-                                </div>
+                            <div class="transfer-history" id="transfer-history"></div>
+                            <div class="empty-state" id="history-empty">
+                                <p class="empty-state-text">Belum ada riwayat transfer</p>
                             </div>
                         </div>
                     </div>
@@ -487,15 +485,14 @@
                                     <span class="explorer-subheading" id="library-files-heading">Semua Berkas</span>
                                     <span class="explorer-subheading-count" id="library-files-count">0 berkas</span>
                                 </div>
-                                <div class="library-grid" id="library-grid">
-                                    <div class="empty-state" id="library-empty">
-                                        <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" opacity="0.4">
-                                            <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/>
-                                            <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/>
-                                        </svg>
-                                        <p class="empty-state-text" id="library-empty-title">Belum ada berkas di Pustaka</p>
-                                        <p class="empty-state-hint" id="library-empty-hint">Tarik berkas atau gunakan tombol di atas untuk menitip materi/tugas.</p>
-                                    </div>
+                                <div class="library-grid" id="library-grid"></div>
+                                <div class="empty-state" id="library-empty">
+                                    <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" opacity="0.4">
+                                        <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/>
+                                        <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/>
+                                    </svg>
+                                    <p class="empty-state-text" id="library-empty-title">Belum ada berkas di Pustaka</p>
+                                    <p class="empty-state-hint" id="library-empty-hint">Tarik berkas atau gunakan tombol di atas untuk menitip materi/tugas.</p>
                                 </div>
                             </div>
                         </div>
@@ -580,31 +577,30 @@
                                     <span class="radar-text">Radar LAN Aktif</span>
                                 </div>
                             </div>
-                            <div class="devices-grid" id="devices-grid">
-                                <div class="empty-state" id="devices-empty">
-                                    <div class="radar-scan-graphic">
-                                        <div class="radar-scan-ring ring-1"></div>
-                                        <div class="radar-scan-ring ring-2"></div>
-                                        <div class="radar-scan-center">
-                                            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                                <path d="M4.93 19.07A10 10 0 0 1 12 2a10 10 0 0 1 7.07 17.07"/>
-                                                <path d="M7.76 16.24A6 6 0 0 1 12 6a6 6 0 0 1 4.24 10.24"/>
-                                                <circle cx="12" cy="12" r="2"/>
-                                            </svg>
-                                        </div>
+                            <div class="devices-grid" id="devices-grid"></div>
+                            <div class="empty-state" id="devices-empty">
+                                <div class="radar-scan-graphic">
+                                    <div class="radar-scan-ring ring-1"></div>
+                                    <div class="radar-scan-ring ring-2"></div>
+                                    <div class="radar-scan-center">
+                                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                            <path d="M4.93 19.07A10 10 0 0 1 12 2a10 10 0 0 1 7.07 17.07"/>
+                                            <path d="M7.76 16.24A6 6 0 0 1 12 6a6 6 0 0 1 4.24 10.24"/>
+                                            <circle cx="12" cy="12" r="2"/>
+                                        </svg>
                                     </div>
-                                    <p class="empty-state-text">Mencari perangkat lain di jaringan Wi-Fi...</p>
-                                    <p class="empty-state-hint">Buka alamat ini di HP / perangkat lain dalam Wi-Fi yang sama:</p>
-                                    <div class="empty-state-connect-box">
-                                        <code id="display-lan-url">http://...</code>
-                                        <button class="btn btn-sm btn-ghost" id="btn-copy-url" type="button">Salin Alamat</button>
-                                    </div>
-                                    <div style="margin-top: 14px;">
-                                        <button class="btn btn-primary btn-sm" id="btn-empty-pair" type="button">
-                                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="2" width="8" height="8" rx="1"/><rect x="14" y="2" width="8" height="8" rx="1"/><rect x="2" y="14" width="8" height="8" rx="1"/><rect x="14" y="14" width="8" height="8" rx="1"/></svg>
-                                            Hubungkan via QR Code
-                                        </button>
-                                    </div>
+                                </div>
+                                <p class="empty-state-text">Mencari perangkat lain di jaringan Wi-Fi...</p>
+                                <p class="empty-state-hint">Buka alamat ini di HP / perangkat lain dalam Wi-Fi yang sama:</p>
+                                <div class="empty-state-connect-box">
+                                    <code id="display-lan-url">http://...</code>
+                                    <button class="btn btn-sm btn-ghost" id="btn-copy-url" type="button">Salin Alamat</button>
+                                </div>
+                                <div style="margin-top: 14px;">
+                                    <button class="btn btn-primary btn-sm" id="btn-empty-pair" type="button">
+                                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="2" width="8" height="8" rx="1"/><rect x="14" y="2" width="8" height="8" rx="1"/><rect x="2" y="14" width="8" height="8" rx="1"/><rect x="14" y="14" width="8" height="8" rx="1"/></svg>
+                                        Hubungkan via QR Code
+                                    </button>
                                 </div>
                             </div>
                         </section>

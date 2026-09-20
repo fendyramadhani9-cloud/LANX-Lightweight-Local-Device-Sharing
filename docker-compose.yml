@@ -6,6 +6,9 @@ services:
     container_name: lanx-server
     restart: unless-stopped
     ports:
-      - "9000:8080"
+      - "8080:8080"
     volumes:
       - ./lanx-data:/data
+    # Catatan: Di Linux / LXC, aktifkan network_mode: host untuk penemuan otomatis mDNS penuh:
+    # network_mode: host
+
