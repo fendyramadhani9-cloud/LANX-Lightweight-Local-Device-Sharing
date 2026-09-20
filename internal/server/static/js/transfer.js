@@ -644,7 +644,16 @@ const Transfer = {
                 <div class="transfer-info">
                     <div class="transfer-name" title="${LANX.escapeHtml(transfer.filename)}">${LANX.escapeHtml(transfer.filename)}</div>
                     ${transfer.description ? `
-                        <div class="transfer-note-bubble" title="Catatan Berkas">${LANX.escapeHtml(transfer.description)}</div>
+                        <div class="transfer-note-bubble" title="Klik untuk pratinjau / lihat catatan"
+                            data-id="${downloadId || ''}"
+                            data-filename="${LANX.escapeHtml(transfer.filename)}"
+                            data-size="${transfer.size || 0}"
+                            data-from="${LANX.escapeHtml(transfer.device || '')}"
+                            data-desc="${LANX.escapeHtml(transfer.description)}"
+                            data-can-preview="${canPreview}">
+                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="flex-shrink: 0;"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+                            <span>${LANX.formatDescription ? LANX.formatDescription(transfer.description) : LANX.escapeHtml(transfer.description)}</span>
+                        </div>
                     ` : ''}
                     <div class="transfer-meta">
                         <span class="transfer-direction">${direction} ${transfer.device || ''}</span>
@@ -663,7 +672,8 @@ const Transfer = {
                                 data-id="${downloadId}"
                                 data-filename="${LANX.escapeHtml(transfer.filename)}"
                                 data-size="${transfer.size || 0}"
-                                data-from="${LANX.escapeHtml(transfer.device || '')}">
+                                data-from="${LANX.escapeHtml(transfer.device || '')}"
+                                data-desc="${LANX.escapeHtml(transfer.description || '')}">
                                 Pratinjau
                             </button>
                         ` : ''}
@@ -681,7 +691,8 @@ const Transfer = {
                         data-filename="${LANX.escapeHtml(transfer.filename)}"
                         data-download-id="${downloadId}"
                         data-size="${transfer.size || 0}"
-                        data-sender="${LANX.escapeHtml(transfer.device || '')}">
+                        data-sender="${LANX.escapeHtml(transfer.device || '')}"
+                        data-desc="${LANX.escapeHtml(transfer.description || '')}">
                         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
                             <circle cx="12" cy="5" r="1"/>
                             <circle cx="12" cy="12" r="1"/>
@@ -703,8 +714,42 @@ const Transfer = {
                 const filename = btn.dataset.filename;
                 const size = parseInt(btn.dataset.size || '0', 10);
                 const from = btn.dataset.from;
+                const desc = btn.dataset.desc || '';
                 if (id && filename) {
-                    LANX.openMediaPreview(filename, id, size, from);
+                    LANX.openMediaPreview(filename, id, size, from, desc);
+                }
+                return;
+            }
+
+            // Clickable note bubble on transfer item
+            const noteBubble = e.target.closest('.transfer-note-bubble');
+            if (noteBubble && !e.target.closest('a')) {
+                e.stopPropagation();
+                const canPreview = noteBubble.dataset.canPreview === 'true';
+                const id = noteBubble.dataset.id;
+                const filename = noteBubble.dataset.filename;
+                const size = parseInt(noteBubble.dataset.size || '0', 10);
+                const from = noteBubble.dataset.from;
+                const desc = noteBubble.dataset.desc || '';
+                if (canPreview && id && filename) {
+                    LANX.openMediaPreview(filename, id, size, from, desc);
+                } else if (desc) {
+                    navigator.clipboard.writeText(desc)
+                        .then(() => LANX.showToast('Catatan disalin ke clipboard', 'success'))
+                        .catch(() => LANX.showToast(desc, 'info'));
+                }
+                return;
+            }
+
+            // Clickable icon or title to open preview directly
+            const triggerEl = e.target.closest('.transfer-icon, .transfer-name, .file-row-icon, .file-row-name');
+            if (triggerEl && !e.target.closest('button, a')) {
+                const row = triggerEl.closest('.transfer-item, .file-list-row');
+                if (row) {
+                    const previewBtn = row.querySelector('.btn-trigger-preview');
+                    if (previewBtn) {
+                        previewBtn.click();
+                    }
                 }
             }
         });
@@ -713,7 +758,7 @@ const Transfer = {
     setupRowSelectionListener() {
         document.addEventListener('click', (e) => {
             const item = e.target.closest('.transfer-item, .file-list-row, .library-card');
-            if (item && !e.target.closest('button, a, input, select, textarea, .btn-row-action')) {
+            if (item && !e.target.closest('button, a, input, select, textarea, .btn-row-action, .transfer-note-bubble, .library-desc-preview')) {
                 const wasSelected = item.classList.contains('selected');
                 document.querySelectorAll('.transfer-item.selected, .file-list-row.selected, .library-card.selected').forEach(el => el.classList.remove('selected'));
                 if (!wasSelected) {
@@ -737,6 +782,7 @@ const Transfer = {
                 const downloadId = btn.dataset.downloadId;
                 const size = parseInt(btn.dataset.size || '0', 10);
                 const sender = btn.dataset.sender;
+                const desc = btn.dataset.desc || '';
                 const downloadUrl = downloadId ? `/api/download/${downloadId}` : '';
 
                 if (typeof LANX !== 'undefined' && LANX.openFileActionSheet) {
@@ -745,6 +791,7 @@ const Transfer = {
                         name: filename,
                         size: size,
                         sender: sender,
+                        description: desc,
                         downloadUrl: downloadUrl,
                         isLibrary: false,
                     });

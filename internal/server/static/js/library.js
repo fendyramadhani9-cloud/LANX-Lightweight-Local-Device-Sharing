@@ -564,8 +564,15 @@ const Library = {
                     </div>
 
                     ${item.description ? `
-                        <div class="library-desc-preview" title="Catatan: ${LANX.escapeHtml(item.description)}">
-                            ${LANX.escapeHtml(item.description)}
+                        <div class="library-desc-preview" title="Klik untuk pratinjau / lihat catatan"
+                            data-id="${item.id}"
+                            data-filename="${LANX.escapeHtml(item.name)}"
+                            data-size="${item.size || 0}"
+                            data-uploader="${LANX.escapeHtml(item.uploader_name || '')}"
+                            data-desc="${LANX.escapeHtml(item.description)}"
+                            data-can-preview="${canPreview}">
+                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="flex-shrink: 0;"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+                            <span>${LANX.formatDescription ? LANX.formatDescription(item.description) : LANX.escapeHtml(item.description)}</span>
                         </div>
                     ` : ''}
                 </div>
@@ -577,7 +584,8 @@ const Library = {
                             data-id="${item.id}"
                             data-filename="${LANX.escapeHtml(item.name)}"
                             data-size="${item.size || 0}"
-                            data-uploader="${LANX.escapeHtml(item.uploader_name || '')}">
+                            data-uploader="${LANX.escapeHtml(item.uploader_name || '')}"
+                            data-desc="${LANX.escapeHtml(item.description || '')}">
                             Pratinjau
                         </button>
                     ` : ''}
@@ -589,9 +597,10 @@ const Library = {
                         <button type="button" class="btn btn-sm btn-danger-ghost btn-delete-library"
                             data-id="${item.id}"
                             data-filename="${LANX.escapeHtml(item.name)}"
-                            title="${hasSelfToken ? 'Hapus berkas milik Anda' : 'Hapus berkas sebagai Admin'}">
+                            data-name="${LANX.escapeHtml(item.name)}"
+                            title="Hapus berkas dari pustaka">
                             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
-                            ${hasSelfToken ? 'Hapus' : 'Hapus (Admin)'}
+                            Hapus
                         </button>
                     ` : ''}
                 </div>
@@ -651,14 +660,48 @@ const Library = {
                 const filename = btn.dataset.filename;
                 const size = parseInt(btn.dataset.size || '0', 10);
                 const uploader = btn.dataset.uploader;
+                const desc = btn.dataset.desc || '';
                 if (id && filename) {
-                    this.openLibraryPreview(filename, id, size, uploader);
+                    this.openLibraryPreview(filename, id, size, uploader, desc);
+                }
+                return;
+            }
+
+            // Clickable note bubble on library card
+            const descEl = e.target.closest('.library-desc-preview');
+            if (descEl && !e.target.closest('a')) {
+                e.stopPropagation();
+                const canPreview = descEl.dataset.canPreview === 'true';
+                const id = descEl.dataset.id;
+                const filename = descEl.dataset.filename;
+                const size = parseInt(descEl.dataset.size || '0', 10);
+                const uploader = descEl.dataset.uploader;
+                const desc = descEl.dataset.desc || '';
+                if (canPreview && id && filename) {
+                    this.openLibraryPreview(filename, id, size, uploader, desc);
+                } else if (desc) {
+                    navigator.clipboard.writeText(desc)
+                        .then(() => LANX.showToast('Catatan disalin ke clipboard', 'success'))
+                        .catch(() => LANX.showToast(desc, 'info'));
+                }
+                return;
+            }
+
+            // Clickable icon or title on library card to open preview
+            const cardTrigger = e.target.closest('.library-card-icon, .library-card-name');
+            if (cardTrigger && !e.target.closest('button, a')) {
+                const card = cardTrigger.closest('.library-card');
+                if (card) {
+                    const previewBtn = card.querySelector('.btn-lib-preview');
+                    if (previewBtn) {
+                        previewBtn.click();
+                    }
                 }
             }
         });
     },
 
-    openLibraryPreview(filename, itemId, size, uploader) {
+    openLibraryPreview(filename, itemId, size, uploader, description = '') {
         const modal = document.getElementById('media-preview-modal');
         if (!modal) return;
 
@@ -667,6 +710,8 @@ const Library = {
         const iconEl = document.getElementById('preview-icon');
         const dlBtn = document.getElementById('preview-btn-download');
         const stage = document.getElementById('preview-stage');
+        const descBar = document.getElementById('preview-description-bar');
+        const descText = document.getElementById('preview-desc-text');
 
         if (nameEl) nameEl.textContent = filename;
         if (metaEl) metaEl.textContent = `${LANX.formatSize(size || 0)} · Diunggah oleh ${uploader || 'Tamu'}`;
@@ -674,6 +719,16 @@ const Library = {
         if (dlBtn) {
             dlBtn.href = `/api/library/download/${itemId}`;
             dlBtn.download = filename;
+        }
+
+        if (descBar && descText) {
+            if (description) {
+                descText.innerHTML = LANX.formatDescription ? LANX.formatDescription(description) : LANX.escapeHtml(description);
+                descBar.style.display = 'flex';
+            } else {
+                descBar.style.display = 'none';
+                descText.innerHTML = '';
+            }
         }
 
         const ext = (filename.split('.').pop() || '').toLowerCase();

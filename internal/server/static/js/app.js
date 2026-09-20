@@ -333,7 +333,7 @@ const LANX = {
                 if (this.currentFileActionItem) {
                     const item = this.currentFileActionItem;
                     this.closeBottomSheet('action-sheet-overlay');
-                    this.openMediaPreview(item.name, item.id, item.size || 0, item.sender || '');
+                    this.openMediaPreview(item.name, item.id, item.size || 0, item.sender || '', item.description || '');
                 }
             });
         }
@@ -1377,8 +1377,8 @@ const LANX = {
                 </span>
                 <div>${fromDevice}: <strong>${this.escapeHtml(msg.filename)}</strong> (${this.formatSize(msg.size)})</div>
                 ${msg.description ? `
-                        <div style="margin-top: 4px; font-size: 0.75rem; color: var(--color-primary); background: rgba(26,115,232,0.1); padding: 3px 8px; border-radius: 4px; border-left: 2px solid var(--color-primary);">
-                         "${this.escapeHtml(msg.description)}"
+                    <div class="toast-note-clickable" data-id="${msg.download_id || ''}" data-filename="${this.escapeHtml(msg.filename)}" data-size="${msg.size || 0}" data-from="${this.escapeHtml(msg.from_device || '')}" data-desc="${this.escapeHtml(msg.description)}" style="margin-top: 4px; font-size: 0.75rem; color: var(--color-primary); background: var(--color-primary-light); padding: 4px 10px; border-radius: 4px; border-left: 3px solid var(--color-primary); cursor: pointer; font-style: normal; font-weight: 500;" title="Klik untuk membuka pratinjau">
+                        💬 ${this.formatDescription(msg.description)}
                     </div>
                 ` : ''}
                 ${msg.is_offline_queue ? '<div style="font-size: 0.75rem; color: var(--color-text-tertiary); margin-top: 2px;">(Dikirim saat perangkat ini sedang offline)</div>' : ''}
@@ -1390,6 +1390,7 @@ const LANX = {
                         data-filename="${this.escapeHtml(msg.filename)}"
                         data-size="${msg.size || 0}"
                         data-from="${this.escapeHtml(msg.from_device || '')}"
+                        data-desc="${this.escapeHtml(msg.description || '')}"
                         style="padding: 4px 10px; border: 1px solid var(--color-border); font-weight: 500;">
                         Pratinjau
                     </button>
@@ -1407,9 +1408,17 @@ const LANX = {
         }, 15000);
     },
 
+    formatDescription(text) {
+        if (!text) return '';
+        const escaped = this.escapeHtml(text);
+        const urlRegex = /(https?:\/\/[^\s<]+)/g;
+        return escaped.replace(urlRegex, '<a href="$1" target="_blank" rel="noopener noreferrer" class="desc-link" onclick="event.stopPropagation()">$1</a>');
+    },
+
     setupMediaPreviewModal() {
         const modal = document.getElementById('media-preview-modal');
         const btnClose = document.getElementById('btn-close-preview');
+        const btnCopyDesc = document.getElementById('btn-copy-preview-desc');
 
         if (btnClose) {
             btnClose.addEventListener('click', () => this.closeMediaPreview());
@@ -1419,8 +1428,18 @@ const LANX = {
                 if (e.target === modal) this.closeMediaPreview();
             });
         }
+        if (btnCopyDesc) {
+            btnCopyDesc.addEventListener('click', () => {
+                const descText = document.getElementById('preview-desc-text');
+                if (descText && descText.textContent) {
+                    navigator.clipboard.writeText(descText.textContent)
+                        .then(() => this.showToast('Catatan disalin ke clipboard', 'success'))
+                        .catch(() => this.showToast(descText.textContent, 'info'));
+                }
+            });
+        }
 
-        // Event delegation for toast preview button
+        // Event delegation for toast preview button & clickable toast note
         document.addEventListener('click', (e) => {
             const toastBtn = e.target.closest('.btn-toast-preview');
             if (toastBtn) {
@@ -1428,14 +1447,28 @@ const LANX = {
                 const filename = toastBtn.dataset.filename;
                 const size = parseInt(toastBtn.dataset.size || '0', 10);
                 const from = toastBtn.dataset.from;
+                const desc = toastBtn.dataset.desc || '';
                 if (id && filename) {
-                    this.openMediaPreview(filename, id, size, from);
+                    this.openMediaPreview(filename, id, size, from, desc);
+                }
+                return;
+            }
+
+            const toastNote = e.target.closest('.toast-note-clickable');
+            if (toastNote && !e.target.closest('a')) {
+                const id = toastNote.dataset.id;
+                const filename = toastNote.dataset.filename;
+                const size = parseInt(toastNote.dataset.size || '0', 10);
+                const from = toastNote.dataset.from;
+                const desc = toastNote.dataset.desc || '';
+                if (id && filename && typeof Transfer !== 'undefined' && Transfer.isPreviewable(filename)) {
+                    this.openMediaPreview(filename, id, size, from, desc);
                 }
             }
         });
     },
 
-    async openMediaPreview(filename, downloadId, size, fromDevice) {
+    async openMediaPreview(filename, downloadId, size, fromDevice, description = '') {
         const modal = document.getElementById('media-preview-modal');
         if (!modal) return;
 
@@ -1444,6 +1477,8 @@ const LANX = {
         const iconEl = document.getElementById('preview-icon');
         const dlBtn = document.getElementById('preview-btn-download');
         const stage = document.getElementById('preview-stage');
+        const descBar = document.getElementById('preview-description-bar');
+        const descText = document.getElementById('preview-desc-text');
 
         if (nameEl) nameEl.textContent = filename;
         if (metaEl) metaEl.textContent = `${this.formatSize(size || 0)} · Dari ${fromDevice || 'Perangkat Lain'}`;
@@ -1451,6 +1486,16 @@ const LANX = {
         if (dlBtn) {
             dlBtn.href = `/api/download/${downloadId}`;
             dlBtn.download = filename;
+        }
+
+        if (descBar && descText) {
+            if (description) {
+                descText.innerHTML = this.formatDescription(description);
+                descBar.style.display = 'flex';
+            } else {
+                descBar.style.display = 'none';
+                descText.innerHTML = '';
+            }
         }
 
         const ext = (filename.split('.').pop() || '').toLowerCase();
@@ -1523,6 +1568,10 @@ const LANX = {
             });
             stage.innerHTML = '';
         }
+        const descBar = document.getElementById('preview-description-bar');
+        const descText = document.getElementById('preview-desc-text');
+        if (descBar) descBar.style.display = 'none';
+        if (descText) descText.innerHTML = '';
         modal.style.display = 'none';
     },
 

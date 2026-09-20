@@ -2,6 +2,7 @@
 services:
   lanx:
     build: .
+    image: lanx:latest
     container_name: lanx-server
     restart: unless-stopped
     ports:

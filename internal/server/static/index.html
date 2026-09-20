@@ -9,7 +9,7 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link rel="icon" type="image/svg+xml" href="/favicon.svg">
-    <link rel="stylesheet" href="/css/style.css">
+    <link rel="stylesheet" href="/css/style.css?v=20260920-3">
 </head>
 <body>
     <!-- App Shell Layout -->
@@ -961,6 +961,13 @@
                 </div>
             </div>
             <div class="preview-stage" id="preview-stage"></div>
+            <div class="preview-description-bar" id="preview-description-bar" style="display: none;">
+                <span class="preview-desc-badge">Catatan</span>
+                <span class="preview-desc-text" id="preview-desc-text"></span>
+                <button type="button" class="btn-icon btn-sm preview-desc-copy-btn" id="btn-copy-preview-desc" title="Salin Catatan" aria-label="Salin Catatan">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+                </button>
+            </div>
         </div>
     </div>
 
@@ -1094,10 +1101,10 @@
     <div class="toast-container" id="toast-container"></div>
 
     <!-- Scripts -->
-    <script src="/js/app.js"></script>
-    <script src="/js/devices.js"></script>
-    <script src="/js/transfer.js"></script>
-    <script src="/js/clipboard.js"></script>
-    <script src="/js/library.js"></script>
+    <script src="/js/app.js?v=20260920-3"></script>
+    <script src="/js/devices.js?v=20260920-3"></script>
+    <script src="/js/transfer.js?v=20260920-3"></script>
+    <script src="/js/clipboard.js?v=20260920-3"></script>
+    <script src="/js/library.js?v=20260920-3"></script>
 </body>
 </html>

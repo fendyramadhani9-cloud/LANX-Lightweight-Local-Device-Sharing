@@ -24,6 +24,11 @@ func (s *Server) registerRoutes() {
 	fileServer := http.FileServer(http.FS(staticFS))
 
 	s.mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+		// Prevent aggressive browser caching during dev/local usage
+		w.Header().Set("Cache-Control", "no-store, no-cache, must-revalidate, max-age=0")
+		w.Header().Set("Pragma", "no-cache")
+		w.Header().Set("Expires", "0")
+
 		// For SPA: serve index.html for non-file paths
 		path := strings.TrimPrefix(r.URL.Path, "/")
 		if path == "" {
