@@ -156,6 +156,8 @@ const Clipboard = {
                     toastMsg = 'Teks tersimpan di server! Akan otomatis masuk saat perangkat online.';
                 }
                 LANX.showToast(toastMsg, 'success');
+                if (typeof LANX !== 'undefined' && LANX.playSound) LANX.playSound('success');
+                if (typeof LANX !== 'undefined' && LANX.vibrate) LANX.vibrate('medium');
                 input.value = '';
                 const sendBtn = document.getElementById('btn-send-text');
                 if (sendBtn) sendBtn.disabled = true;

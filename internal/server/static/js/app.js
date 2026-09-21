@@ -912,8 +912,29 @@ const LANX = {
         }
     },
 
+    vibrate(pattern = 'light') {
+        if (!this.soundEnabled) return;
+        try {
+            if (typeof navigator !== 'undefined' && 'vibrate' in navigator) {
+                if (typeof pattern === 'string') {
+                    const presets = {
+                        light: 25,
+                        medium: 40,
+                        success: [30, 60, 40],
+                        incoming: [40, 80, 40],
+                        error: [70, 50, 70]
+                    };
+                    navigator.vibrate(presets[pattern] || 30);
+                } else {
+                    navigator.vibrate(pattern);
+                }
+            }
+        } catch (e) {}
+    },
+
     playSound(type = 'success') {
         if (!this.soundEnabled) return;
+        this.vibrate(type);
         try {
             const AudioContext = window.AudioContext || window.webkitAudioContext;
             if (!AudioContext) return;
@@ -2026,6 +2047,7 @@ const LANX = {
                 const ok = document.execCommand('copy');
                 document.body.removeChild(ta);
                 if (ok) {
+                    this.vibrate('light');
                     if (successMsg) this.showToast(successMsg, 'success');
                     return true;
                 }
@@ -2039,6 +2061,7 @@ const LANX = {
         if (navigator.clipboard && window.isSecureContext) {
             return navigator.clipboard.writeText(text)
                 .then(() => {
+                    this.vibrate('light');
                     if (successMsg) this.showToast(successMsg, 'success');
                     return true;
                 })

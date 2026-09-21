@@ -471,6 +471,10 @@ const Transfer = {
             mainDescInput.style.height = '';
         }
 
+        if (typeof LANX !== 'undefined' && LANX.vibrate) {
+            LANX.vibrate('medium');
+        }
+
         if (isFolder) {
             this.uploadFolder(folderName, files, targetDevice, description);
         } else {
