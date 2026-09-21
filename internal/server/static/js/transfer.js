@@ -10,6 +10,7 @@ const Transfer = {
         this.setupDropZone();
         this.setupFolderInput();
         this.setupCameraInput();
+        this.setupSendConfirmModal();
         this.setupPreviewClickListener();
         this.setupRowSelectionListener();
         this.loadHistory();
@@ -28,10 +29,21 @@ const Transfer = {
 
         // Click to browse file
         dropZone.addEventListener('click', (e) => {
-            // If user clicked inside actions, desc box, or input, do not trigger file picker
-            if (e.target.closest('#drop-zone-actions, .drop-zone-desc-box, .transfer-desc-input, button, input, label')) return;
+            // If user clicked inside actions, desc box, or input/textarea, do not trigger file picker
+            if (e.target.closest('#drop-zone-actions, .drop-zone-desc-box, .transfer-desc-input, button, input, textarea, label')) return;
             fileInput.click();
         });
+
+        const descInput = document.getElementById('transfer-desc-input');
+        if (descInput) {
+            const autoResize = () => {
+                descInput.style.height = 'auto';
+                descInput.style.height = Math.min(descInput.scrollHeight, 140) + 'px';
+            };
+            descInput.addEventListener('input', autoResize);
+            descInput.addEventListener('click', (e) => e.stopPropagation());
+            descInput.addEventListener('keydown', (e) => e.stopPropagation());
+        }
 
         if (btnPickFile) {
             btnPickFile.addEventListener('click', (e) => {
@@ -205,31 +217,265 @@ const Transfer = {
     // ─── File & Folder Handling ──────────────────────────
 
     handleFiles(files) {
+        if (!files || files.length === 0) return;
         const descInput = document.getElementById('transfer-desc-input');
         const description = descInput ? descInput.value.trim() : '';
-        if (descInput) descInput.value = '';
-
-        const device = Devices.getSelectedDevice();
-        if (!device) {
-            this.showDevicePicker(files, false, '', description);
-            return;
-        }
-
-        files.forEach(file => this.uploadFile(file, device, description));
+        this.openSendConfirmation({ files, isFolder: false, folderName: '', description });
     },
 
     handleFolder(folderName, files) {
+        if (!files || files.length === 0) return;
         const descInput = document.getElementById('transfer-desc-input');
         const description = descInput ? descInput.value.trim() : '';
-        if (descInput) descInput.value = '';
+        this.openSendConfirmation({ files, isFolder: true, folderName, description });
+    },
 
-        const device = Devices.getSelectedDevice();
-        if (!device) {
-            this.showDevicePicker(files, true, folderName, description);
+    // ─── Send Verification & Confirmation Modal ──────────
+
+    setupSendConfirmModal() {
+        const modal = document.getElementById('send-confirm-modal');
+        const btnExecute = document.getElementById('btn-execute-send');
+        const btnCancel = document.getElementById('btn-cancel-send-confirm');
+        const btnClose = document.getElementById('btn-close-send-confirm');
+        const descInput = document.getElementById('send-confirm-desc');
+
+        if (btnExecute) {
+            btnExecute.addEventListener('click', () => this.executeSendConfirmation());
+        }
+
+        if (btnCancel) {
+            btnCancel.addEventListener('click', () => this.closeSendConfirmation());
+        }
+
+        if (btnClose) {
+            btnClose.addEventListener('click', () => this.closeSendConfirmation());
+        }
+
+        if (modal) {
+            modal.addEventListener('click', (e) => {
+                if (e.target === modal) this.closeSendConfirmation();
+            });
+        }
+
+        if (descInput) {
+            descInput.addEventListener('input', () => {
+                descInput.style.height = 'auto';
+                descInput.style.height = Math.min(descInput.scrollHeight, 140) + 'px';
+            });
+            descInput.addEventListener('keydown', (e) => e.stopPropagation());
+        }
+    },
+
+    openSendConfirmation({ files, isFolder = false, folderName = '', description = '' }) {
+        if (!files || files.length === 0) return;
+
+        // Clean up previous staging object URLs if any
+        if (this.stagedData && this.stagedData.objectUrls) {
+            this.stagedData.objectUrls.forEach(url => {
+                try { URL.revokeObjectURL(url); } catch (e) {}
+            });
+        }
+
+        this.stagedData = {
+            files: [...files],
+            isFolder,
+            folderName,
+            objectUrls: []
+        };
+
+        const modal = document.getElementById('send-confirm-modal');
+        if (!modal) return;
+
+        // Populate Destination Selector
+        const targetSelect = document.getElementById('send-confirm-target');
+        if (targetSelect) {
+            targetSelect.innerHTML = '';
+
+            const optAll = document.createElement('option');
+            optAll.value = 'all';
+            optAll.textContent = '🌐 Semua Perangkat (Siaran Langsung)';
+            targetSelect.appendChild(optAll);
+
+            const visible = (typeof Devices !== 'undefined') ? Devices.getVisibleDevices() : [];
+            const onlineDevices = visible.filter(d => d.online !== false);
+            const offlineDevices = visible.filter(d => d.online === false);
+
+            if (onlineDevices.length > 0) {
+                const groupOnline = document.createElement('optgroup');
+                groupOnline.label = 'Perangkat Online';
+                onlineDevices.forEach(d => {
+                    const opt = document.createElement('option');
+                    opt.value = d.id;
+                    opt.textContent = `🟢 ${d.name} (${d.platform || 'Online'})`;
+                    groupOnline.appendChild(opt);
+                });
+                targetSelect.appendChild(groupOnline);
+            }
+
+            if (offlineDevices.length > 0) {
+                const groupOffline = document.createElement('optgroup');
+                groupOffline.label = 'Kotak Masuk Offline';
+                offlineDevices.forEach(d => {
+                    const opt = document.createElement('option');
+                    opt.value = d.id;
+                    opt.textContent = `📦 ${d.name} (Offline - Simpan di Kotak Masuk)`;
+                    groupOffline.appendChild(opt);
+                });
+                targetSelect.appendChild(groupOffline);
+            }
+
+            const currentDevice = (typeof Devices !== 'undefined') ? Devices.getSelectedDevice() : null;
+            if (currentDevice && currentDevice.id && currentDevice.id !== 'all') {
+                targetSelect.value = currentDevice.id;
+            } else {
+                targetSelect.value = 'all';
+            }
+        }
+
+        // Preload description note
+        const descTextarea = document.getElementById('send-confirm-desc');
+        if (descTextarea) {
+            descTextarea.value = description || '';
+            descTextarea.style.height = 'auto';
+            if (description) {
+                descTextarea.style.height = Math.min(descTextarea.scrollHeight, 140) + 'px';
+            }
+        }
+
+        this.renderStagedFiles();
+        modal.style.display = 'flex';
+    },
+
+    renderStagedFiles() {
+        const modal = document.getElementById('send-confirm-modal');
+        const listEl = document.getElementById('send-confirm-files-list');
+        const countEl = document.getElementById('send-confirm-count');
+        const sizeEl = document.getElementById('send-confirm-size');
+        const btnSendLabel = document.getElementById('btn-execute-send-text');
+
+        if (!this.stagedData || !this.stagedData.files || this.stagedData.files.length === 0) {
+            this.closeSendConfirmation();
             return;
         }
 
-        this.uploadFolder(folderName, files, device, description);
+        const { files, isFolder, folderName } = this.stagedData;
+        const totalBytes = files.reduce((acc, f) => acc + (f.size || 0), 0);
+        const sizeFormatted = (typeof LANX !== 'undefined' && LANX.formatSize) ? LANX.formatSize(totalBytes) : `${Math.round(totalBytes / 1024)} KB`;
+
+        if (countEl) {
+            countEl.textContent = isFolder 
+                ? `Folder: ${folderName || 'Folder'} (${files.length} Berkas)` 
+                : `${files.length} Berkas`;
+        }
+        if (sizeEl) {
+            sizeEl.textContent = sizeFormatted;
+        }
+        if (btnSendLabel) {
+            btnSendLabel.textContent = isFolder 
+                ? `Kirim Folder (${sizeFormatted})` 
+                : (files.length === 1 ? `Kirim Berkas (${sizeFormatted})` : `Kirim ${files.length} Berkas (${sizeFormatted})`);
+        }
+
+        if (!listEl) return;
+        listEl.innerHTML = '';
+
+        files.forEach((file, idx) => {
+            const item = document.createElement('div');
+            item.className = 'send-confirm-file-item';
+
+            const isImage = file.type && file.type.startsWith('image/');
+            let mediaThumbHtml = '';
+
+            if (isImage) {
+                try {
+                    const objectUrl = URL.createObjectURL(file);
+                    this.stagedData.objectUrls.push(objectUrl);
+                    mediaThumbHtml = `<img src="${objectUrl}" alt="${LANX.escapeHtml(file.name)}" class="send-confirm-thumb">`;
+                } catch (e) {
+                    mediaThumbHtml = `<div class="send-confirm-icon">${this.getFileIcon(file.name, false, 24)}</div>`;
+                }
+            } else {
+                mediaThumbHtml = `<div class="send-confirm-icon">${this.getFileIcon(file.name, isFolder, 24)}</div>`;
+            }
+
+            const formattedItemSize = (typeof LANX !== 'undefined' && LANX.formatSize) ? LANX.formatSize(file.size || 0) : '';
+
+            item.innerHTML = `
+                ${mediaThumbHtml}
+                <div class="send-confirm-file-info">
+                    <div class="send-confirm-file-name" title="${LANX.escapeHtml(file.name)}">${LANX.escapeHtml(file.name)}</div>
+                    <div class="send-confirm-file-meta">${formattedItemSize}</div>
+                </div>
+                ${!isFolder && files.length > 1 ? `
+                    <button type="button" class="btn-icon send-confirm-remove-btn" data-idx="${idx}" title="Hapus dari daftar kirim">
+                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                    </button>
+                ` : ''}
+            `;
+
+            const removeBtn = item.querySelector('.send-confirm-remove-btn');
+            if (removeBtn) {
+                removeBtn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    this.stagedData.files.splice(idx, 1);
+                    this.renderStagedFiles();
+                });
+            }
+
+            listEl.appendChild(item);
+        });
+    },
+
+    closeSendConfirmation() {
+        const modal = document.getElementById('send-confirm-modal');
+        if (modal) modal.style.display = 'none';
+
+        if (this.stagedData && this.stagedData.objectUrls) {
+            this.stagedData.objectUrls.forEach(url => {
+                try { URL.revokeObjectURL(url); } catch (e) {}
+            });
+        }
+        this.stagedData = null;
+    },
+
+    executeSendConfirmation() {
+        if (!this.stagedData || !this.stagedData.files || this.stagedData.files.length === 0) {
+            this.closeSendConfirmation();
+            return;
+        }
+
+        const targetSelect = document.getElementById('send-confirm-target');
+        const targetId = targetSelect ? targetSelect.value : 'all';
+
+        let targetDevice = { id: 'all', name: 'Semua Perangkat' };
+        if (targetId && targetId !== 'all') {
+            const visible = (typeof Devices !== 'undefined') ? Devices.getVisibleDevices() : [];
+            const found = visible.find(d => d.id === targetId);
+            if (found) {
+                targetDevice = found;
+            } else {
+                targetDevice = { id: targetId, name: 'Perangkat' };
+            }
+        }
+
+        const descInput = document.getElementById('send-confirm-desc');
+        const description = descInput ? descInput.value.trim() : '';
+
+        const { files, isFolder, folderName } = this.stagedData;
+        this.closeSendConfirmation();
+
+        // Clear main description input
+        const mainDescInput = document.getElementById('transfer-desc-input');
+        if (mainDescInput) {
+            mainDescInput.value = '';
+            mainDescInput.style.height = '';
+        }
+
+        if (isFolder) {
+            this.uploadFolder(folderName, files, targetDevice, description);
+        } else {
+            files.forEach(file => this.uploadFile(file, targetDevice, description));
+        }
     },
 
     showDevicePicker(files, isFolder = false, folderName = '', preloadedDesc = '') {
@@ -241,7 +487,10 @@ const Transfer = {
         if (!description) {
             const descInput = document.getElementById('transfer-desc-input');
             description = descInput ? descInput.value.trim() : '';
-            if (descInput) descInput.value = '';
+            if (descInput) {
+                descInput.value = '';
+                descInput.style.height = '';
+            }
         }
 
         const overlay = document.createElement('div');
@@ -348,7 +597,10 @@ const Transfer = {
         } else {
             const descInput = document.getElementById('transfer-desc-input');
             description = descInput ? descInput.value.trim() : '';
-            if (descInput) descInput.value = '';
+            if (descInput) {
+                descInput.value = '';
+                descInput.style.height = '';
+            }
         }
 
         this.activeTransfers[transferId] = {
@@ -483,7 +735,10 @@ const Transfer = {
         } else {
             const descInput = document.getElementById('transfer-desc-input');
             description = descInput ? descInput.value.trim() : '';
-            if (descInput) descInput.value = '';
+            if (descInput) {
+                descInput.value = '';
+                descInput.style.height = '';
+            }
         }
 
         this.activeTransfers[transferId] = {

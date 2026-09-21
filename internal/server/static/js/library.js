@@ -132,9 +132,20 @@ const Library = {
 
         dropZone.addEventListener('click', (e) => {
             // If clicking controls, pills, desc box, or action buttons, don't trigger file picker
-            if (e.target.closest('.library-upload-controls, #library-drop-actions, .library-desc-box, .library-desc-input, button, input, label')) return;
+            if (e.target.closest('.library-upload-controls, #library-drop-actions, .library-desc-box, .library-desc-input, button, input, textarea, label')) return;
             fileInput.click();
         });
+
+        const descInput = document.getElementById('library-description-input');
+        if (descInput) {
+            const autoResize = () => {
+                descInput.style.height = 'auto';
+                descInput.style.height = Math.min(descInput.scrollHeight, 140) + 'px';
+            };
+            descInput.addEventListener('input', autoResize);
+            descInput.addEventListener('click', (e) => e.stopPropagation());
+            descInput.addEventListener('keydown', (e) => e.stopPropagation());
+        }
 
         if (btnPick) {
             btnPick.addEventListener('click', (e) => {
@@ -189,6 +200,10 @@ const Library = {
     async uploadFile(file) {
         const descInput = document.getElementById('library-description-input');
         const description = descInput ? descInput.value.trim() : '';
+        if (descInput) {
+            descInput.value = '';
+            descInput.style.height = '';
+        }
 
         const formData = new FormData();
         formData.append('file', file);

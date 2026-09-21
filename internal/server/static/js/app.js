@@ -458,6 +458,17 @@ const LANX = {
                     return;
                 }
 
+                // 2b. If send confirmation is active, close and revoke preview URLs
+                const sendConfirmModal = document.getElementById('send-confirm-modal');
+                if (sendConfirmModal && sendConfirmModal.style.display !== 'none') {
+                    if (typeof Transfer !== 'undefined' && Transfer.closeSendConfirmation) {
+                        Transfer.closeSendConfirmation();
+                    } else {
+                        sendConfirmModal.style.display = 'none';
+                    }
+                    return;
+                }
+
                 // 3. Remove device picker overlays if any
                 document.querySelectorAll('.device-picker-overlay').forEach(o => o.remove());
 
@@ -1580,7 +1591,8 @@ const LANX = {
         if (!text) return '';
         const escaped = this.escapeHtml(text);
         const urlRegex = /(https?:\/\/[^\s<]+)/g;
-        return escaped.replace(urlRegex, '<a href="$1" target="_blank" rel="noopener noreferrer" class="desc-link" onclick="event.stopPropagation()">$1</a>');
+        return escaped.replace(urlRegex, '<a href="$1" target="_blank" rel="noopener noreferrer" class="desc-link" onclick="event.stopPropagation()">$1</a>')
+                      .replace(/\r\n|\r|\n/g, '<br>');
     },
 
     setupMediaPreviewModal() {

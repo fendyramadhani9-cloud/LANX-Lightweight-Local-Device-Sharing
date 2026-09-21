@@ -9,7 +9,7 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link rel="icon" type="image/svg+xml" href="/favicon.svg">
-    <link rel="stylesheet" href="/css/style.css?v=20260920-14">
+    <link rel="stylesheet" href="/css/style.css?v=20260921-5">
 </head>
 <body>
     <!-- App Shell Layout -->
@@ -285,7 +285,7 @@
                                 <line x1="16" y1="17" x2="8" y2="17"></line>
                                 <polyline points="10 9 9 9 8 9"></polyline>
                             </svg>
-                            <input type="text" id="transfer-desc-input" class="transfer-desc-input" placeholder="Tambahkan catatan berkas sebelum kirim (opsional)..." maxlength="255" autocomplete="off">
+                            <textarea id="transfer-desc-input" class="transfer-desc-input" placeholder="Tambahkan catatan berkas sebelum kirim (opsional)..." rows="1" maxlength="500"></textarea>
                         </div>
 
                         <!-- Active Transfers Section -->
@@ -415,10 +415,6 @@
                                             <option value="Umum">Umum</option>
                                         </select>
                                     </div>
-
-                                    <div class="library-desc-box">
-                                        <input type="text" id="library-description-input" class="library-desc-input" placeholder="Tambahkan catatan berkas (opsional)..." maxlength="255" autocomplete="off">
-                                    </div>
                                 </div>
 
                                 <div class="drop-zone-actions" id="library-drop-actions">
@@ -432,6 +428,18 @@
                                 </div>
                             </div>
                             <input type="file" id="library-file-input" multiple hidden>
+                        </div>
+
+                        <!-- Library Note Box (Under Drop Zone & Upload Button) -->
+                        <div class="drop-zone-desc-box library-desc-box" id="library-desc-box">
+                            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="desc-input-icon">
+                                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                                <polyline points="14 2 14 8 20 8"></polyline>
+                                <line x1="16" y1="13" x2="8" y2="13"></line>
+                                <line x1="16" y1="17" x2="8" y2="17"></line>
+                                <polyline points="10 9 9 9 8 9"></polyline>
+                            </svg>
+                            <textarea id="library-description-input" class="transfer-desc-input library-desc-input" placeholder="Tambahkan catatan berkas (opsional)..." rows="1" maxlength="500"></textarea>
                         </div>
 
                         <!-- Library Items Explorer Section (Option 2) -->
@@ -910,6 +918,61 @@
     <!-- Toast Container -->
     <div class="toast-container" id="toast-container"></div>
 
+    <!-- Send Verification & Confirmation Modal -->
+    <div class="modal-overlay" id="send-confirm-modal" style="display: none;">
+        <div class="modal modal-md send-confirm-modal">
+            <div class="modal-header">
+                <h2 class="modal-title">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color: var(--color-primary);">
+                        <path d="M22 2L11 13"/>
+                        <polygon points="22 2 15 22 11 13 2 9 22 2"/>
+                    </svg>
+                    <span>Verifikasi Pengiriman Berkas</span>
+                </h2>
+                <button type="button" class="btn-icon" id="btn-close-send-confirm" aria-label="Tutup">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                </button>
+            </div>
+            <div class="modal-body send-confirm-body">
+                <!-- Staged Summary Header -->
+                <div class="send-confirm-summary">
+                    <span class="send-confirm-count" id="send-confirm-count">1 Berkas dipilih</span>
+                    <span class="send-confirm-dot">•</span>
+                    <span class="send-confirm-size" id="send-confirm-size">0 KB</span>
+                </div>
+
+                <!-- Staged Files Preview List -->
+                <div class="send-confirm-files-list" id="send-confirm-files-list">
+                    <!-- Staged file cards dynamically injected -->
+                </div>
+
+                <!-- Target Destination Selector -->
+                <div class="send-confirm-field">
+                    <label class="settings-label" for="send-confirm-target">Kirim ke Perangkat:</label>
+                    <select class="settings-input send-target-select" id="send-confirm-target">
+                        <!-- Populated with devices -->
+                    </select>
+                </div>
+
+                <!-- Description / Note Input -->
+                <div class="send-confirm-field">
+                    <label class="settings-label" for="send-confirm-desc">Catatan Berkas (Opsional):</label>
+                    <textarea class="settings-input send-confirm-desc-input" id="send-confirm-desc" rows="2" maxlength="500" placeholder="Tambahkan catatan berkas (opsional)..."></textarea>
+                </div>
+            </div>
+            <div class="modal-footer send-confirm-footer">
+                <button type="button" class="btn btn-ghost" id="btn-cancel-send-confirm">Batal</button>
+                <button type="button" class="btn btn-primary btn-send-confirm" id="btn-execute-send">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <line x1="22" y1="2" x2="11" y2="13"/>
+                        <polygon points="22 2 15 22 11 13 2 9 22 2"/>
+                    </svg>
+                    <span id="btn-execute-send-text">Kirim Sekarang</span>
+                </button>
+            </div>
+        </div>
+    </div>
+
     <!-- Incoming File/Text Modal -->
     <div class="modal-overlay" id="incoming-modal" style="display: none;">
         <div class="modal modal-sm">
@@ -1254,10 +1317,10 @@
     <div class="toast-container" id="toast-container"></div>
 
     <!-- Scripts -->
-    <script src="/js/app.js?v=20260920-14"></script>
-    <script src="/js/devices.js?v=20260920-14"></script>
-    <script src="/js/transfer.js?v=20260920-14"></script>
-    <script src="/js/clipboard.js?v=20260920-14"></script>
-    <script src="/js/library.js?v=20260920-14"></script>
+    <script src="/js/app.js?v=20260921-5"></script>
+    <script src="/js/devices.js?v=20260921-5"></script>
+    <script src="/js/transfer.js?v=20260921-5"></script>
+    <script src="/js/clipboard.js?v=20260921-5"></script>
+    <script src="/js/library.js?v=20260921-5"></script>
 </body>
 </html>
