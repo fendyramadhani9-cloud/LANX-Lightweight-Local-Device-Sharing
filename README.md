@@ -10,40 +10,50 @@ Seluruh antarmuka web dikompilasi langsung ke dalam satu berkas biner mandiri (*
 
 ### 1. Pustaka Bersama (Shared Library)
 - **Penyimpanan Persisten**: Menyediakan repositori bersama untuk modul ajar, materi kuliah, dan berkas tugas yang tidak terhapus otomatis saat diunduh serta bertahan saat server dimulai ulang.
+- **Pengorganisasian Folder**: Berkas dalam Pustaka dapat dikelompokkan ke dalam kategori folder terstruktur untuk memudahkan klasifikasi dokumen.
 - **Unggah Tamu Tanpa Kata Sandi**: Pengguna dan siswa dapat langsung mengunggah materi ke Pustaka tanpa memerlukan pendaftaran akun.
 - **Masa Kedaluwarsa Berkas**: Mendukung opsi retensi waktu mulai dari 3, 7, 14, 30, 90 hari, hingga 1 tahun, dilengkapi pemilih tanggal kalender (*calendar date picker*) dengan batas maksimal 365 hari.
 - **Pembersihan Otomatis**: Layanan pembersih di latar belakang (*background cleaner*) secara berkala memeriksa dan menghapus berkas yang telah melewati masa aktif.
 - **Penghapusan Mandiri (Self-Delete Token)**: Server menerbitkan token kriptografi pada peramban pengunggah (`localStorage`), sehingga pengunggah dapat menghapus berkas miliknya sendiri tanpa mengizinkan tamu lain menghapusnya.
-- **Pencarian dan Filter**: Pencarian cepat berbasis nama berkas, catatan keterangan, maupun nama pengunggah.
-- **Pemantauan Kapasitas Disk**: Indikator kapasitas penyimpanan Pustaka real-time dengan batas keras (*hard cap quota*) untuk menjaga ruang simpan server tetap aman.
+- **Pencarian dan Filter Cepat**: Pencarian berkas secara instan berdasarkan nama berkas, catatan keterangan, maupun kategori folder.
+- **Unduh Arsip ZIP Koleksi**: Pengunduhan seluruh isi Pustaka atau folder tertentu sebagai satu arsip `.zip` yang dialirkan secara *on-the-fly*.
 
-### 2. Catatan dan Pesan Berkas (File Descriptions)
-- Pengirim dapat menyematkan catatan penjelasan (contoh: deskripsi tugas, konteks gambar, atau instruksi pengerjaan) pada transfer langsung maupun saat menyimpan ke Pustaka.
-- Catatan ditampilkan secara visual pada riwayat transfer, gelembung notifikasi penerima, serta kartu berkas Pustaka.
+### 2. Verifikasi Pengiriman & Alur Kerja Berkas
+- **Modal Verifikasi Pengiriman**: Berkas yang dipilih tidak langsung terkirim secara otomatis. Pengguna diarahkan ke dialog verifikasi untuk meninjau daftar berkas, pratinjau thumbnail citra, estimasi ukuran total, pemilihan perangkat tujuan, serta penambahan catatan penjelasan.
+- **Tempel Langsung Clipboard OS (Ctrl+V)**: Mendukung penempelan berkas atau tangkapan layar (*screenshot*) langsung dari papan klip sistem operasi (contoh: pintasan Win + Shift + S pada Windows) ke jendela peramban untuk langsung diproses ke modal pengiriman.
+- **Catatan dan Pesan Multibaris**: Pengirim dapat menyematkan catatan penjelasan berformat multibaris pada transfer langsung maupun saat menyimpan ke Pustaka. Catatan ini dapat disalin kembali dengan satu klik oleh penerima.
+- **Aksi Tautan Cerdas (Smart Link Action)**: Deteksi otomatis format URL pada pertukaran teks. Tautan dapat langsung diklik atau dibuka ke tab baru peramban melalui tombol aksi cepat tanpa perlu proses salin-tempel manual.
 
-### 3. Kendali dan Mode Administrator
+### 3. Pengalaman Audio & Haptik
+- **Sintesis Audio Mandiri (Web Audio API)**: Memberikan umpan balik nada ganda harmonik saat transfer selesai atau saat pesan masuk tanpa memerlukan aset berkas audio eksternal (0 KB beban unduhan aset).
+- **Getaran Taktil Ponsel (Haptic Vibration)**: Integrasi respons getar halus (`navigator.vibrate`) pada peramban perangkat seluler saat menyalin teks, menekan tombol kirim, maupun menerima berkas.
+- **Kendali Preferensi Terpadu**: Opsi pengaktifan atau penonaktifan umpan balik suara dan getar dapat dikelola langsung melalui menu Pengaturan.
+
+### 4. Kendali dan Mode Administrator
 - **Autentikasi Master PIN**: Akses panel kontrol administrator dilindungi oleh PIN utama (bawaan: `123456`, dapat diperbarui melalui pengaturan).
+- **Pemantauan Kapasitas Disk Host Terisolasi**: Informasi kapasitas penyimpanan fisik server (LXC Proxmox / Host OS) diproteksi penuh dan hanya dapat dilihat oleh administrator yang terautentikasi PIN. Dilengkapi indikator visual persentase, rincian kapasitas terpakai/bebas, serta tombol pembersihan berkas sementara.
 - **Persetujuan Cerdas Berkas Besar (Smart Approval)**: Berkas Pustaka yang melebihi batas ukuran tertentu (bawaan: 50 MB) secara otomatis ditahan dalam antrean persetujuan (*pending approval*) untuk mencegah kepenuhan disk akibat pengunggahan yang tidak terkontrol.
 - **Notifikasi Persetujuan Real-Time**: Administrator menerima pemberitahuan instan via WebSocket untuk menyetujui atau menolak berkas besar.
 - **Promosi Peran Perangkat (Role Promotion)**: Administrator dapat memberikan status admin kepada perangkat lain di jaringan secara langsung tanpa perlu membagikan Master PIN.
 - **Hak Akses Penuh**: Administrator memiliki wewenang untuk menghapus berkas apa pun di Pustaka serta mengatur kapasitas kuota penyimpanan.
 
-### 4. Transfer Langsung Antar-Perangkat
+### 5. Transfer Langsung Antar-Perangkat
 - **Bebas Kuota Pustaka**: Mode transfer langsung antar-perangkat tidak dikenakan batas persetujuan berkas besar (mendukung berkas hingga kapasitas batas engine 10 GB).
-- **Kotak Masuk Luring (Store-and-Forward Mailbox)**: Pengiriman berkas tetap dapat dilakukan meskipun komputer tujuan sedang mati atau terputus. Berkas disimpan sementara di server dan otomatis terkirim begitu perangkat tujuan terhubung.
+- **Kotak Masuk Luring (Store-and-Forward Mailbox)**: Pengiriman berkas tetap dapat dilakukan meskipun komputer tujuan sedang mati atau terputus. Berkas disimpan sementara di server dan otomatis terkirim begitu perangkat tujuan terhubung kembali.
 - **Auto-Delete on Delivery**: Berkas transfer langsung 1-ke-1 otomatis dihapus dari penyimpanan server begitu selesai diunduh oleh penerima guna menjaga kebersihan disk server.
-- **Unduh Otomatis (Auto-Download)**: Opsi opsional bagi penerima untuk langsung menyimpan berkas masuk ke folder unduhan tanpa konfirmasi manual.
+- **Unduh Otomatis (Auto-Download)**: Opsi bagi penerima untuk langsung menyimpan berkas masuk ke folder unduhan lokal tanpa konfirmasi manual berulang.
+- **Unduh Massal Format ZIP**: Jika terdapat beberapa berkas yang diterima pada riwayat transfer, penerima dapat mengunduh seluruh berkas sekaligus dalam satu berkas arsip `.zip`.
 - **Pratinjau Media di Peramban**: Pratinjau langsung untuk berkas citra, pemutar video (`.mp4`, `.webm`, `.mov`), pemutar audio (`.mp3`, `.wav`, `.m4a`), dokumen PDF, dan berkas teks/kode sumber tanpa perlu mengunduh terlebih dahulu.
 - **Pengemasan Direktori Streaming (Auto-Zip)**: Unggah folder utuh beserta struktur sub-direktorinya yang otomatis dikemas menjadi arsip `.zip` secara streaming.
-- **Speedometer dan Estimasi Waktu (ETA)**: Pengukuran kecepatan transfer real-time dengan penghalusan *Exponential Moving Average (EMA)* dan kalkulasi sisa waktu transfer.
+- **Speedometer dan Estimasi Waktu (ETA)**: Pengukuran kecepatan transfer real-time dengan penghalusan *Exponential Moving Average (EMA)* dan kalkulasi sisa waktu transfer berbasis manipulasi DOM langsung 60fps tanpa kedip (*no-flicker*).
 - **Mode Pengiriman Fleksibel**: Pilihan kirim ke satu perangkat tertentu (*1-to-1*) atau siaran serentak ke seluruh perangkat di jaringan (*Broadcast*).
 
-### 5. Arsitektur Ganda (Dual UX Experience)
+### 6. Arsitektur Ganda (Dual UX Experience)
 LANX mengusung arsitektur antarmuka terarah (*tailored dual experience*) yang membedakan pengalaman pengguna Desktop dan Mobile secara fundamental:
 
 1. **Desktop / Laptop UX (Lab File Manager)**:
    - Dirancang khusus untuk PC laboratorium komputer dan laptop berbasis interaksi mouse dan keyboard.
-   - **Sidebar Persisten**: Navigasi kiri yang selalu terlihat untuk beralih antara Files, Recent, Shared Library, Text, dan Devices. Dilengkapi indikator pemakaian penyimpanan server dan status host LAN.
+   - **Sidebar Persisten**: Navigasi kiri yang selalu terlihat untuk beralih antara Files, Recent, Shared Library, Text, dan Devices.
    - **Bilah Pencarian Global**: Pencarian berkas, catatan, dan perangkat secara instan di bagian atas antarmuka.
    - **Tampilan Grid dan List**: Tombol alih tampilan berkas antara kartu grid modern dan tabel baris berkas.
    - **Area Tarik-dan-Lepas (Drag & Drop Zone)**: Area dropzone interaktif untuk transfer berkas atau folder secara langsung.
@@ -51,13 +61,14 @@ LANX mengusung arsitektur antarmuka terarah (*tailored dual experience*) yang me
 2. **Mobile / Touch UX (Native Touch First)**:
    - Dirancang ergonomis untuk navigasi satu tangan menggunakan ibu jari (*thumb-zone navigation*) pada ponsel pintar dan tablet.
    - **Bilah Atas Ringkas**: Menampilkan identitas perangkat aktif dan status koneksi tanpa memakan ruang layar.
-   - **Daftar Berkas Vertikal Bersih**: Format baris berkas ringkas yang memuat ikon tipe berkas, nama berkas, ukuran, waktu transfer, pengirim, dan tombol aksi titik-tiga vertikal (`⋮`).
+   - **Daftar Berkas Vertikal Bersih**: Format baris berkas ringkas yang memuat ikon tipe berkas, nama berkas, ukuran, waktu transfer, pengirim, dan tombol aksi menu titik-tiga vertikal (`⋮`).
    - **Bilah Navigasi Bawah (Bottom Navigation Bar)**: Tersemat di bagian bawah layar dengan 5 tab utama (Files, Recent, Shared, Text, More).
    - **Tombol Tambah Mengambang (Floating Action Button / FAB)**: Tombol `+` mengambang di atas bilah navigasi bawah untuk membuka lembar unggah secara instan.
-   - **Lembar Aksi Bawah (Contextual Bottom Sheets)**: Menggantikan popup kaku dan menu klik kanan. Menekan tombol `⋮` pada berkas akan memunculkan menu slide-up bawah untuk Unduh, Pratinjau, Salin Tautan, dan Hapus.
-   - **Bebas Ketergantungan Drag & Drop**: Seluruh interaksi mobile digantikan dengan pemilih berkas native, kamera langsung, dan pemilihan folder.
+   - **Lembar Aksi Bawah (Contextual Bottom Sheets)**: Menggantikan popup kaku dan menu klik kanan. Menekan tombol `⋮` pada berkas akan memunculkan menu geser bawah untuk Unduh, Pratinjau, Salin Tautan, dan Hapus.
+   - **Integrasi Kamera Langsung**: Opsi pengambilan foto langsung menggunakan kamera ponsel (`capture="environment"`) untuk segera dibagikan ke jaringan.
+   - **Safe Area Insets**: Mendukung margin aman untuk perangkat berponi (*notch*) maupun bilah navigasi gestur iPhone dan Android.
 
-### 6. Komunikasi Teks dan Penemuan Jaringan
+### 7. Komunikasi Teks dan Penemuan Jaringan
 - **Sinkronisasi Teks & Papan Klip**: Pengiriman teks, catatan ringkas, dan tautan antar-perangkat secara instan.
 - **Penemuan Otomatis (Zero-Configuration)**: Deteksi perangkat otomatis di jaringan lokal menggunakan Multicast DNS (mDNS) dan WebSocket.
 - **Penyambungan Kode QR**: Perangkat seluler dapat memindai kode QR di antarmuka web untuk langsung terhubung.
