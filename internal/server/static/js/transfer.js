@@ -502,14 +502,10 @@ const Transfer = {
             speed: 0,
             eta: null,
             isFolder: true,
-            description: document.getElementById('transfer-desc-input')?.value.trim() || '',
+            description: description,
         };
 
         this.renderActiveTransfers();
-
-        const descInput = document.getElementById('transfer-desc-input');
-        const description = descInput ? descInput.value.trim() : '';
-        if (descInput) descInput.value = '';
 
         const formData = new FormData();
         formData.append('folder_name', folderName);
