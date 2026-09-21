@@ -4885,4 +4885,61 @@ body {
     }
 }
 
+/* --- QoL Features & Polish --- */
+.btn-open-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    background: var(--color-primary);
+    color: #ffffff !important;
+    font-weight: 600;
+    transition: all var(--transition-fast);
+    box-shadow: 0 1px 3px rgba(26, 115, 232, 0.25);
+}
 
+.btn-open-link:hover {
+    filter: brightness(1.1);
+    transform: translateY(-1px);
+    box-shadow: 0 3px 8px rgba(26, 115, 232, 0.35);
+}
+
+.admin-storage-card {
+    border-radius: var(--radius-lg);
+    background: var(--color-surface);
+    border: 1px solid var(--color-border);
+    transition: border-color var(--transition-fast);
+}
+
+.admin-storage-card:hover {
+    border-color: var(--color-primary);
+}
+
+.admin-disk-bar {
+    position: relative;
+    box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.1);
+}
+
+.admin-disk-bar #admin-disk-fill {
+    border-radius: 4px;
+    box-shadow: 0 0 8px rgba(26, 115, 232, 0.4);
+}
+
+#btn-download-all-zip {
+    transition: all var(--transition-fast);
+    border-radius: var(--radius-md);
+}
+
+#btn-download-all-zip:hover {
+    background: var(--color-surface-hover);
+    border-color: var(--color-primary);
+    color: var(--color-primary);
+}
+
+#btn-lib-download-zip {
+    transition: all var(--transition-fast);
+}
+
+#btn-lib-download-zip:hover {
+    border-color: var(--color-primary);
+    color: var(--color-primary);
+}

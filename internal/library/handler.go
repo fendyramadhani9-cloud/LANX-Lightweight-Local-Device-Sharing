@@ -1,6 +1,7 @@
 package library
 
 import (
+	"archive/zip"
 	"crypto/rand"
 	"encoding/hex"
 	"encoding/json"
@@ -52,6 +53,7 @@ func (h *Handler) RegisterRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("GET /api/library/pending", h.handleListPending)
 	mux.HandleFunc("POST /api/library/upload", h.handleUpload)
 	mux.HandleFunc("GET /api/library/download/{id}", h.handleDownload)
+	mux.HandleFunc("GET /api/library/download-zip", h.handleDownloadZip)
 	mux.HandleFunc("POST /api/library/delete", h.handleDelete)
 	mux.HandleFunc("POST /api/library/approve", h.handleApprove)
 	mux.HandleFunc("POST /api/library/reject", h.handleReject)
@@ -250,6 +252,83 @@ func (h *Handler) handleDownload(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", mimeType)
 
 	http.ServeFile(w, r, it.Path)
+}
+
+func (h *Handler) handleDownloadZip(w http.ResponseWriter, r *http.Request) {
+	folder := strings.TrimSpace(r.URL.Query().Get("folder"))
+	var items []*LibraryItem
+	if folder != "" && folder != "all" {
+		items = h.mgr.ListApproved("", folder)
+	} else {
+		items = h.mgr.ListApproved("")
+	}
+
+	if len(items) == 0 {
+		http.Error(w, "Tidak ada berkas di pustaka untuk diunduh", http.StatusNotFound)
+		return
+	}
+
+	zipName := "LANX_Pustaka_Semua.zip"
+	if folder != "" && folder != "all" {
+		safeFolderName := strings.Map(func(r rune) rune {
+			if r == '/' || r == '\\' || r == ':' || r == '*' || r == '?' || r == '"' || r == '<' || r == '>' || r == '|' {
+				return '_'
+			}
+			return r
+		}, folder)
+		zipName = fmt.Sprintf("LANX_Pustaka_%s.zip", safeFolderName)
+	}
+
+	w.Header().Set("Content-Type", "application/zip")
+	w.Header().Set("Content-Disposition", fmt.Sprintf(`attachment; filename="%s"`, zipName))
+
+	zw := zip.NewWriter(w)
+	defer zw.Close()
+
+	usedNames := make(map[string]int)
+
+	for _, it := range items {
+		src, err := os.Open(it.Path)
+		if err != nil {
+			continue
+		}
+
+		cleanName := it.Filename
+		entryName := cleanName
+		if count, exists := usedNames[cleanName]; exists {
+			usedNames[cleanName] = count + 1
+			ext := filepath.Ext(cleanName)
+			base := strings.TrimSuffix(cleanName, ext)
+			entryName = fmt.Sprintf("%s (%d)%s", base, count+1, ext)
+		} else {
+			usedNames[cleanName] = 1
+		}
+
+		fi, statErr := src.Stat()
+		var header *zip.FileHeader
+		if statErr == nil {
+			header, err = zip.FileInfoHeader(fi)
+			if err == nil {
+				header.Name = entryName
+				header.Method = zip.Deflate
+			}
+		}
+		if header == nil {
+			header = &zip.FileHeader{
+				Name:   entryName,
+				Method: zip.Deflate,
+			}
+		}
+
+		writer, err := zw.CreateHeader(header)
+		if err != nil {
+			src.Close()
+			continue
+		}
+
+		_, _ = io.Copy(writer, src)
+		src.Close()
+	}
 }
 
 type deleteRequest struct {

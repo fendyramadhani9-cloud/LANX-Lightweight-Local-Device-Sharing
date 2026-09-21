@@ -179,6 +179,7 @@ const Clipboard = {
         const isOffline = !!msg.is_offline_queue;
         const suffix = isOffline ? ' (Kotak Masuk)' : (isBroadcast ? ' (Siaran)' : '');
         this.addReceivedItem(senderName + suffix, msg.text);
+        if (typeof LANX !== 'undefined' && LANX.playSound) LANX.playSound('incoming');
         if (isOffline) {
             LANX.showToast(`Pesan dari ${senderName} (dikirim saat Anda offline)`, 'info');
         } else {
@@ -190,6 +191,7 @@ const Clipboard = {
         const isBroadcast = msg.target_device_id === 'all';
         const senderName = msg.from_device || 'Perangkat Lain';
         this.addReceivedItem(senderName + (isBroadcast ? ' (Siaran)' : ''), msg.content);
+        if (typeof LANX !== 'undefined' && LANX.playSound) LANX.playSound('incoming');
         LANX.showToast(`Papan klip baru dari ${senderName}${isBroadcast ? ' [Semua Perangkat]' : ''}`, 'info');
     },
 
@@ -221,21 +223,45 @@ const Clipboard = {
         }
 
         section.style.display = 'block';
-        container.innerHTML = this.receivedTexts.map((item, idx) => `
-            <div class="received-item">
-                <div class="received-item-header">
-                    <span class="received-item-from">Dari: <strong>${LANX.escapeHtml(item.from)}</strong></span>
-                    <span class="received-item-time">${LANX.formatTime(item.timestamp)}</span>
+        container.innerHTML = this.receivedTexts.map((item, idx) => {
+            const urlMatch = item.content.match(/(https?:\/\/[^\s<]+)/i);
+            const extractedUrl = urlMatch ? urlMatch[0] : null;
+
+            let formattedContent = LANX.escapeHtml(item.content);
+            if (extractedUrl) {
+                const escapedUrl = LANX.escapeHtml(extractedUrl);
+                formattedContent = formattedContent.replace(
+                    escapedUrl,
+                    `<a href="${escapedUrl}" target="_blank" rel="noopener noreferrer" class="chat-link" style="color: var(--color-primary); text-decoration: underline; word-break: break-all;">${escapedUrl}</a>`
+                );
+            }
+
+            return `
+                <div class="received-item">
+                    <div class="received-item-header">
+                        <span class="received-item-from">Dari: <strong>${LANX.escapeHtml(item.from)}</strong></span>
+                        <span class="received-item-time">${LANX.formatTime(item.timestamp)}</span>
+                    </div>
+                    <div class="received-item-content">${formattedContent}</div>
+                    <div class="received-item-actions" style="display: flex; gap: 8px; flex-wrap: wrap;">
+                        ${extractedUrl ? `
+                            <a href="${LANX.escapeHtml(extractedUrl)}" target="_blank" rel="noopener noreferrer" class="btn btn-primary btn-sm btn-open-link" style="text-decoration: none; gap: 4px; padding: 4px 10px; font-size: var(--font-size-xs);">
+                                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                    <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/>
+                                    <polyline points="15 3 21 3 21 9"/>
+                                    <line x1="10" y1="14" x2="21" y2="3"/>
+                                </svg>
+                                Buka Tautan
+                            </a>
+                        ` : ''}
+                        <button class="btn btn-ghost btn-sm btn-copy-text" data-index="${idx}">
+                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+                            Salin Teks
+                        </button>
+                    </div>
                 </div>
-                <div class="received-item-content">${LANX.escapeHtml(item.content)}</div>
-                <div class="received-item-actions">
-                    <button class="btn btn-ghost btn-sm btn-copy-text" data-index="${idx}">
-                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
-                        Salin Teks
-                    </button>
-                </div>
-            </div>
-        `).join('');
+            `;
+        }).join('');
 
         // Attach click handlers to copy buttons
         container.querySelectorAll('.btn-copy-text').forEach(btn => {

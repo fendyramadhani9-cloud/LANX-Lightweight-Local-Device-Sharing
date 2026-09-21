@@ -658,7 +658,9 @@ const Transfer = {
                             }
                         }
 
-                        this.renderActiveTransfers();
+                        if (!this.updateActiveTransferDOM(item)) {
+                            this.renderActiveTransfers();
+                        }
                     }
                 }
             });
@@ -681,6 +683,7 @@ const Transfer = {
                     } else {
                         LANX.showToast(`${file.name} berhasil terkirim`, 'success');
                     }
+                    if (typeof LANX !== 'undefined' && LANX.playSound) LANX.playSound('success');
                 } else {
                     if (item) item.status = 'failed';
                     LANX.showToast(`Gagal mengirim ${file.name}`, 'error');
@@ -802,7 +805,9 @@ const Transfer = {
                             }
                         }
 
-                        this.renderActiveTransfers();
+                        if (!this.updateActiveTransferDOM(item)) {
+                            this.renderActiveTransfers();
+                        }
                     }
                 }
             });
@@ -825,6 +830,7 @@ const Transfer = {
                     } else {
                         LANX.showToast(`Folder "${folderName}" berhasil dikemas & dikirim!`, 'success');
                     }
+                    if (typeof LANX !== 'undefined' && LANX.playSound) LANX.playSound('success');
                 } else {
                     if (item) item.status = 'failed';
                     LANX.showToast(`Gagal mengirim folder ${folderName}`, 'error');
@@ -886,6 +892,41 @@ const Transfer = {
                 }
             });
         });
+    },
+
+    updateActiveTransferDOM(transfer) {
+        const container = document.getElementById('active-transfers');
+        if (!container) return false;
+        const el = container.querySelector(`.transfer-item[data-id="${transfer.id}"]`);
+        if (!el) return false;
+
+        const fill = el.querySelector('.transfer-progress-fill');
+        if (fill) fill.style.width = `${transfer.percentage}%`;
+
+        const statusEl = el.querySelector('.transfer-status');
+        if (statusEl) statusEl.textContent = `${transfer.percentage}%`;
+
+        const metaEl = el.querySelector('.transfer-meta span:nth-child(2)');
+        if (metaEl) {
+            metaEl.textContent = `${LANX.formatSize(transfer.loaded || 0)} / ${LANX.formatSize(transfer.size || 0)}`;
+        }
+
+        let speedRow = el.querySelector('.transfer-speed-row');
+        if (transfer.speed > 0) {
+            const speedText = `<span class="speed-badge"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg> ${this.formatSpeed(transfer.speed)}</span> ${transfer.eta !== null ? `<span class="eta-badge">${this.formatETA(transfer.eta)}</span>` : ''}`;
+            if (speedRow) {
+                speedRow.innerHTML = speedText;
+            } else {
+                const infoEl = el.querySelector('.transfer-info');
+                if (infoEl) {
+                    const newRow = document.createElement('div');
+                    newRow.className = 'transfer-speed-row';
+                    newRow.innerHTML = speedText;
+                    infoEl.appendChild(newRow);
+                }
+            }
+        }
+        return true;
     },
 
     renderTransferItem(transfer, isActive = false) {
@@ -1158,6 +1199,21 @@ const Transfer = {
         if (filesContainer) {
             filesContainer.style.display = '';
             filesContainer.innerHTML = html;
+        }
+
+        // Toggle "Unduh Semua (.ZIP)" button in history header
+        const btnDownloadAll = document.getElementById('btn-download-all-zip');
+        const downloadableItems = (items || []).filter(t => t.download_id);
+        if (btnDownloadAll) {
+            if (downloadableItems.length >= 2) {
+                btnDownloadAll.style.display = 'inline-flex';
+                btnDownloadAll.onclick = () => {
+                    const ids = downloadableItems.map(t => t.download_id).join(',');
+                    window.location.href = `/api/download-batch?ids=${encodeURIComponent(ids)}`;
+                };
+            } else {
+                btnDownloadAll.style.display = 'none';
+            }
         }
 
         this.attachRowActionListeners();

@@ -603,6 +603,14 @@ const Library = {
     // ─── Admin Bulk Clear Controls ───────────────────────
 
     setupAdminClearControls() {
+        const btnDownloadZip = document.getElementById('btn-lib-download-zip');
+        if (btnDownloadZip) {
+            btnDownloadZip.addEventListener('click', () => {
+                const folderParam = (this.currentFolder && this.currentFolder !== 'all') ? `?folder=${encodeURIComponent(this.currentFolder)}` : '';
+                window.location.href = `/api/library/download-zip${folderParam}`;
+            });
+        }
+
         const btnClearImages = document.getElementById('btn-lib-clear-images');
         const btnClearAll = document.getElementById('btn-lib-clear-all');
         const modal = document.getElementById('clear-confirm-modal');

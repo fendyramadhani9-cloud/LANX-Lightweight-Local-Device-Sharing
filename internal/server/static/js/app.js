@@ -22,6 +22,14 @@ const LANX = {
             return null;
         }
     })(),
+    soundEnabled: (() => {
+        try {
+            return localStorage.getItem('lanx_sound_enabled') !== 'false';
+        } catch (e) {
+            return true;
+        }
+    })(),
+    audioCtx: null,
 
     /** Initialize the application */
     async init() {
@@ -50,6 +58,8 @@ const LANX = {
         this.setupModals();
         this.setupMediaPreviewModal();
         this.setupGuideModal();
+        this.initSound();
+        this.setupGlobalPaste();
 
         // Sync profile with server database
         await this.syncDeviceProfile();
@@ -745,6 +755,9 @@ const LANX = {
         if (adminGroup) {
             adminGroup.style.display = active ? 'block' : 'none';
         }
+        if (active) {
+            this.loadStorageStats();
+        }
         if (typeof Library !== 'undefined' && Library.updateAdminActionsVisibility) {
             Library.updateAdminActionsVisibility(active);
         }
@@ -886,19 +899,167 @@ const LANX = {
         });
     },
 
-    async loadStorageStats() {
-        const textEl = document.getElementById('storage-usage-text');
-        if (!textEl) return;
+    initSound() {
+        const toggle = document.getElementById('setting-sound-enabled');
+        if (toggle) {
+            toggle.checked = this.soundEnabled;
+            toggle.addEventListener('change', () => {
+                this.soundEnabled = toggle.checked;
+                try {
+                    localStorage.setItem('lanx_sound_enabled', toggle.checked ? 'true' : 'false');
+                } catch (e) {}
+            });
+        }
+    },
+
+    playSound(type = 'success') {
+        if (!this.soundEnabled) return;
         try {
-            const res = await fetch('/api/storage/stats');
-            if (res.ok) {
-                const data = await res.json();
-                textEl.textContent = `${data.file_count} berkas (${this.formatSize(data.total_bytes)})`;
-            } else {
-                textEl.textContent = '-';
+            const AudioContext = window.AudioContext || window.webkitAudioContext;
+            if (!AudioContext) return;
+            if (!this.audioCtx) {
+                this.audioCtx = new AudioContext();
+            }
+            if (this.audioCtx.state === 'suspended') {
+                this.audioCtx.resume();
+            }
+
+            const now = this.audioCtx.currentTime;
+            const masterGain = this.audioCtx.createGain();
+            masterGain.gain.setValueAtTime(0.08, now);
+            masterGain.connect(this.audioCtx.destination);
+
+            if (type === 'success') {
+                // Harmonic AirDrop-style double bell (D5 -> A5)
+                const osc1 = this.audioCtx.createOscillator();
+                const gain1 = this.audioCtx.createGain();
+                osc1.type = 'sine';
+                osc1.frequency.setValueAtTime(587.33, now);
+                gain1.gain.setValueAtTime(0.8, now);
+                gain1.gain.exponentialRampToValueAtTime(0.001, now + 0.28);
+                osc1.connect(gain1);
+                gain1.connect(masterGain);
+                osc1.start(now);
+                osc1.stop(now + 0.3);
+
+                const osc2 = this.audioCtx.createOscillator();
+                const gain2 = this.audioCtx.createGain();
+                osc2.type = 'sine';
+                osc2.frequency.setValueAtTime(880.00, now + 0.1);
+                gain2.gain.setValueAtTime(0.9, now + 0.1);
+                gain2.gain.exponentialRampToValueAtTime(0.001, now + 0.42);
+                osc2.connect(gain2);
+                gain2.connect(masterGain);
+                osc2.start(now + 0.1);
+                osc2.stop(now + 0.45);
+            } else if (type === 'incoming') {
+                // Soft arrival chime (E5 -> G5)
+                const osc1 = this.audioCtx.createOscillator();
+                const gain1 = this.audioCtx.createGain();
+                osc1.type = 'sine';
+                osc1.frequency.setValueAtTime(659.25, now);
+                gain1.gain.setValueAtTime(0.7, now);
+                gain1.gain.exponentialRampToValueAtTime(0.001, now + 0.22);
+                osc1.connect(gain1);
+                gain1.connect(masterGain);
+                osc1.start(now);
+                osc1.stop(now + 0.25);
+
+                const osc2 = this.audioCtx.createOscillator();
+                const gain2 = this.audioCtx.createGain();
+                osc2.type = 'sine';
+                osc2.frequency.setValueAtTime(783.99, now + 0.08);
+                gain2.gain.setValueAtTime(0.8, now + 0.08);
+                gain2.gain.exponentialRampToValueAtTime(0.001, now + 0.38);
+                osc2.connect(gain2);
+                gain2.connect(masterGain);
+                osc2.start(now + 0.08);
+                osc2.stop(now + 0.4);
             }
         } catch (e) {
-            textEl.textContent = '-';
+            // AudioContext blocked or not supported
+        }
+    },
+
+    setupGlobalPaste() {
+        window.addEventListener('paste', (e) => {
+            const items = e.clipboardData ? e.clipboardData.items : null;
+            const files = e.clipboardData ? e.clipboardData.files : null;
+
+            let fileList = [];
+            if (files && files.length > 0) {
+                fileList = Array.from(files);
+            } else if (items) {
+                for (let i = 0; i < items.length; i++) {
+                    if (items[i].kind === 'file') {
+                        const f = items[i].getAsFile();
+                        if (f) fileList.push(f);
+                    }
+                }
+            }
+
+            if (fileList.length > 0) {
+                e.preventDefault();
+
+                const processedFiles = fileList.map((file, idx) => {
+                    let name = file.name;
+                    if (!name || name === 'image.png' || name === 'blob') {
+                        const dateStr = new Date().toISOString().slice(0, 19).replace(/[-:T]/g, '');
+                        const ext = (file.type && file.type.split('/')[1]) || 'png';
+                        name = `Screenshot_${dateStr}_${idx + 1}.${ext}`;
+                        try {
+                            return new File([file], name, { type: file.type });
+                        } catch (err) {
+                            return file;
+                        }
+                    }
+                    return file;
+                });
+
+                if (typeof Transfer !== 'undefined' && Transfer.openSendConfirmation) {
+                    Transfer.openSendConfirmation(processedFiles, false, '', '');
+                    this.showToast('Foto/berkas dari papan klip siap dikirim!', 'info');
+                    this.playSound('incoming');
+                }
+            }
+        });
+    },
+
+    async loadStorageStats() {
+        if (!this.isAdmin || !this.adminToken) return;
+        const pctEl = document.getElementById('admin-storage-pct');
+        const fillEl = document.getElementById('admin-disk-fill');
+        const detailEl = document.getElementById('admin-storage-detail');
+
+        try {
+            const res = await fetch('/api/storage/stats', {
+                headers: { 'X-Admin-Token': this.adminToken || '' }
+            });
+            if (res.ok) {
+                const data = await res.json();
+                if (data.host_disk) {
+                    const d = data.host_disk;
+                    const pct = Math.min(100, Math.max(0, Math.round(d.percentage || 0)));
+                    if (pctEl) pctEl.textContent = `${pct}%`;
+                    if (fillEl) {
+                        fillEl.style.width = `${pct}%`;
+                        if (pct >= 90) {
+                            fillEl.style.background = '#ef4444';
+                        } else if (pct >= 80) {
+                            fillEl.style.background = '#f59e0b';
+                        } else {
+                            fillEl.style.background = 'var(--color-primary)';
+                        }
+                    }
+                    if (detailEl) {
+                        detailEl.textContent = `Digunakan: ${this.formatSize(d.used_bytes)} / ${this.formatSize(d.total_bytes)} (Tersisa: ${this.formatSize(d.free_bytes)} • ${data.file_count || 0} berkas sementara)`;
+                    }
+                } else if (detailEl) {
+                    detailEl.textContent = `${data.file_count || 0} berkas sementara (${this.formatSize(data.total_bytes || 0)})`;
+                }
+            }
+        } catch (e) {
+            if (detailEl) detailEl.textContent = 'Gagal memuat kapasitas disk';
         }
     },
 
@@ -1477,6 +1638,7 @@ const LANX = {
                         }
                     }
                     this.showFileReceivedToast(msg, autoDownloaded);
+                    this.playSound('incoming');
                 }
                 break;
 

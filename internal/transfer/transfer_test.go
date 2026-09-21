@@ -378,6 +378,34 @@ func TestStorageStatsAndClean(t *testing.T) {
 		t.Errorf("expected file_count >= 1, got %v", stats["file_count"])
 	}
 
+	if stats["host_disk"] != nil {
+		t.Errorf("host_disk should not be visible to public unauthenticated requests")
+	}
+
+	// Test GET /api/storage/stats with admin auth
+	reqStatsAdmin := httptest.NewRequest("GET", "/api/storage/stats", nil)
+	reqStatsAdmin.Header.Set("X-Admin-Token", "admin")
+	wStatsAdmin := httptest.NewRecorder()
+	mux.ServeHTTP(wStatsAdmin, reqStatsAdmin)
+	var statsAdmin map[string]any
+	if err := json.Unmarshal(wStatsAdmin.Body.Bytes(), &statsAdmin); err != nil {
+		t.Fatal(err)
+	}
+	if statsAdmin["host_disk"] == nil {
+		t.Errorf("expected host_disk to be present for admin request")
+	}
+
+	// Test GET /api/download-batch
+	reqBatch := httptest.NewRequest("GET", "/api/download-batch", nil)
+	wBatch := httptest.NewRecorder()
+	mux.ServeHTTP(wBatch, reqBatch)
+	if wBatch.Code != http.StatusOK {
+		t.Fatalf("expected 200 for batch download, got %d", wBatch.Code)
+	}
+	if ct := wBatch.Header().Get("Content-Type"); ct != "application/zip" {
+		t.Errorf("expected application/zip, got %s", ct)
+	}
+
 	// Test POST /api/storage/clean
 	reqClean := httptest.NewRequest("POST", "/api/storage/clean", nil)
 	reqClean.Header.Set("X-Admin-Token", "admin")

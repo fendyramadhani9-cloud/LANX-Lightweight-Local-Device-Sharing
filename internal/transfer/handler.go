@@ -104,6 +104,17 @@ func (fs *FileStore) Get(id string) (*StoredFile, bool) {
 	return f, ok
 }
 
+// GetAll returns a slice of all stored files.
+func (fs *FileStore) GetAll() []*StoredFile {
+	fs.mu.RLock()
+	defer fs.mu.RUnlock()
+	res := make([]*StoredFile, 0, len(fs.files))
+	for _, f := range fs.files {
+		res = append(res, f)
+	}
+	return res
+}
+
 // Handler provides HTTP handlers for file upload/download.
 type Handler struct {
 	mgr                 *Manager
@@ -193,6 +204,8 @@ func (h *Handler) RegisterRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("POST /api/upload", h.handleUpload)
 	mux.HandleFunc("POST /api/upload-folder", h.handleUploadFolder)
 	mux.HandleFunc("GET /api/download/{id}", h.handleDownload)
+	mux.HandleFunc("GET /api/download-batch", h.handleDownloadBatch)
+	mux.HandleFunc("POST /api/download-batch", h.handleDownloadBatch)
 	mux.HandleFunc("GET /api/transfers", h.handleListTransfers)
 	mux.HandleFunc("GET /api/storage/stats", h.handleStorageStats)
 	mux.HandleFunc("POST /api/storage/clean", h.handleStorageClean)
@@ -563,6 +576,106 @@ func (h *Handler) handleDownload(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+func (h *Handler) handleDownloadBatch(w http.ResponseWriter, r *http.Request) {
+	idsParam := r.URL.Query().Get("ids")
+	var ids []string
+	if idsParam != "" {
+		for _, id := range strings.Split(idsParam, ",") {
+			id = strings.TrimSpace(id)
+			if id != "" {
+				ids = append(ids, id)
+			}
+		}
+	}
+
+	if len(ids) == 0 && r.Method == http.MethodPost {
+		var body struct {
+			IDs []string `json:"ids"`
+		}
+		if err := json.NewDecoder(r.Body).Decode(&body); err == nil {
+			ids = body.IDs
+		}
+	}
+
+	var filesToZip []*StoredFile
+	if len(ids) > 0 {
+		for _, id := range ids {
+			if sf, ok := h.store.Get(id); ok {
+				if _, err := os.Stat(sf.Path); err == nil {
+					filesToZip = append(filesToZip, sf)
+				}
+			}
+		}
+	} else {
+		for _, sf := range h.store.GetAll() {
+			if _, err := os.Stat(sf.Path); err == nil {
+				filesToZip = append(filesToZip, sf)
+			}
+		}
+	}
+
+	if len(filesToZip) == 0 {
+		http.Error(w, "Tidak ada berkas yang dapat diunduh", http.StatusNotFound)
+		return
+	}
+
+	zipFilename := fmt.Sprintf("LANX_Files_%s.zip", time.Now().Format("20060102_150405"))
+	w.Header().Set("Content-Type", "application/zip")
+	w.Header().Set("Content-Disposition", fmt.Sprintf(`attachment; filename="%s"`, zipFilename))
+
+	zw := zip.NewWriter(w)
+	defer zw.Close()
+
+	usedNames := make(map[string]int)
+
+	for _, sf := range filesToZip {
+		src, err := os.Open(sf.Path)
+		if err != nil {
+			continue
+		}
+
+		cleanName := sanitizeFilename(sf.Filename)
+		if cleanName == "" {
+			cleanName = "file"
+		}
+
+		entryName := cleanName
+		if count, exists := usedNames[cleanName]; exists {
+			usedNames[cleanName] = count + 1
+			ext := filepath.Ext(cleanName)
+			base := strings.TrimSuffix(cleanName, ext)
+			entryName = fmt.Sprintf("%s (%d)%s", base, count+1, ext)
+		} else {
+			usedNames[cleanName] = 1
+		}
+
+		fi, statErr := src.Stat()
+		var header *zip.FileHeader
+		if statErr == nil {
+			header, err = zip.FileInfoHeader(fi)
+			if err == nil {
+				header.Name = entryName
+				header.Method = zip.Deflate
+			}
+		}
+		if header == nil {
+			header = &zip.FileHeader{
+				Name:   entryName,
+				Method: zip.Deflate,
+			}
+		}
+
+		writer, err := zw.CreateHeader(header)
+		if err != nil {
+			src.Close()
+			continue
+		}
+
+		_, _ = io.Copy(writer, src)
+		src.Close()
+	}
+}
+
 func (h *Handler) handleStorageStats(w http.ResponseWriter, r *http.Request) {
 	var count int
 	var totalBytes int64
@@ -579,11 +692,20 @@ func (h *Handler) handleStorageStats(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	writeJSON(w, http.StatusOK, map[string]any{
+	resp := map[string]any{
 		"file_count":            count,
 		"total_bytes":           totalBytes,
 		"auto_delete_delivered": h.autoDeleteDelivered,
-	})
+	}
+
+	// Only include host_disk if request is authorized as Admin
+	if h.isAdminRequest(r) {
+		if du, err := getDiskSpace(h.downloadDir); err == nil && du != nil {
+			resp["host_disk"] = du
+		}
+	}
+
+	writeJSON(w, http.StatusOK, resp)
 }
 
 func (h *Handler) handleStorageClean(w http.ResponseWriter, r *http.Request) {

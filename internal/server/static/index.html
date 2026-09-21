@@ -9,7 +9,7 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link rel="icon" type="image/svg+xml" href="/favicon.svg">
-    <link rel="stylesheet" href="/css/style.css?v=20260921-5">
+    <link rel="stylesheet" href="/css/style.css?v=20260921-6">
 </head>
 <body>
     <!-- App Shell Layout -->
@@ -313,9 +313,17 @@
                          ============================================ -->
                     <div class="tab-panel" id="panel-recent">
                         <div class="section" id="history-section">
-                            <div class="section-header-wrap">
-                                <h3 class="section-title">Riwayat Lengkap Transfer</h3>
-                                <span class="section-subtitle">Daftar semua transfer berkas yang masuk dan keluar</span>
+                            <div class="section-header-wrap" style="display: flex; justify-content: space-between; align-items: flex-start;">
+                                <div>
+                                    <h3 class="section-title">Riwayat Lengkap Transfer</h3>
+                                    <span class="section-subtitle">Daftar semua transfer berkas yang masuk dan keluar</span>
+                                </div>
+                                <div class="history-actions-bar" style="display: flex; gap: 8px;">
+                                    <button type="button" class="btn btn-sm btn-ghost" id="btn-download-all-zip" style="display: none; border: 1px solid var(--color-border); gap: 6px;">
+                                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                                        <span>Unduh Semua (.ZIP)</span>
+                                    </button>
+                                </div>
                             </div>
                             <div class="transfer-history" id="transfer-history"></div>
                             <div class="empty-state" id="history-empty">
@@ -337,6 +345,10 @@
                                     </span>
                                     <div class="library-header-actions">
                                         <span class="library-quota-info" id="library-quota-info">Memuat kapasitas...</span>
+                                        <button type="button" class="btn-lib-action" id="btn-lib-download-zip" title="Unduh seluruh berkas pustaka sebagai arsip ZIP">
+                                            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                                            <span>Unduh ZIP</span>
+                                        </button>
                                         <div class="library-admin-actions" id="library-admin-actions" style="display: none;">
                                             <button type="button" class="btn-lib-action btn-lib-clear-images" id="btn-lib-clear-images" title="Hapus semua berkas gambar di Pustaka (Admin)">
                                                 <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
@@ -822,15 +834,15 @@
                             <span class="toggle-slider"></span>
                         </label>
                     </div>
-                    <div class="settings-field" style="margin-top: 14px; padding-top: 10px; border-top: 1px solid var(--color-border-light); display: flex; align-items: center; justify-content: space-between;">
+                    <div class="settings-field settings-toggle-field" style="margin-top: 12px;">
                         <div>
-                            <label class="settings-label">Penyimpanan Server</label>
-                            <p class="settings-hint" id="storage-usage-text">Memuat...</p>
+                            <label class="settings-label" for="setting-sound-enabled">Efek Suara Notifikasi</label>
+                            <p class="settings-hint">Bunyikan nada halus saat pengiriman selesai atau pesan baru masuk.</p>
                         </div>
-                        <button type="button" class="btn btn-sm btn-ghost" id="btn-clean-server-storage" style="color: #ef4444; border-color: rgba(239, 68, 68, 0.3);">
-                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
-                            Bersihkan Server
-                        </button>
+                        <label class="toggle">
+                            <input type="checkbox" id="setting-sound-enabled" checked>
+                            <span class="toggle-slider"></span>
+                        </label>
                     </div>
                 </div>
                 <div class="settings-group" id="admin-settings-group" style="display: none;">
@@ -853,6 +865,26 @@
                     <div class="settings-field" style="margin-top: 10px;">
                         <label class="settings-label" for="setting-admin-server-name">Nama Server Jaringan</label>
                         <input type="text" class="settings-input" id="setting-admin-server-name" maxlength="64" placeholder="Nama server">
+                    </div>
+                    <!-- Admin Only: Server Host Disk Capacity -->
+                    <div class="settings-field admin-storage-card" style="margin-top: 14px; padding: 14px; border-radius: var(--radius-md); background: var(--color-surface-hover); border: 1px solid var(--color-border);">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                            <div style="display: flex; align-items: center; gap: 6px;">
+                                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="2" width="20" height="8" rx="2" ry="2"/><rect x="2" y="14" width="20" height="8" rx="2" ry="2"/><line x1="6" y1="6" x2="6.01" y2="6"/><line x1="6" y1="18" x2="6.01" y2="18"/></svg>
+                                <span style="font-weight: 600; font-size: var(--font-size-sm); color: var(--color-text);">Kapasitas Disk Server (LXC / Host)</span>
+                            </div>
+                            <span id="admin-storage-pct" style="font-size: var(--font-size-xs); font-weight: 700; color: var(--color-primary);">0%</span>
+                        </div>
+                        <div class="admin-disk-bar" style="height: 8px; border-radius: 4px; background: var(--color-border); overflow: hidden; margin-bottom: 8px;">
+                            <div id="admin-disk-fill" style="height: 100%; width: 0%; background: var(--color-primary); transition: width 0.3s ease;"></div>
+                        </div>
+                        <div style="display: flex; justify-content: space-between; align-items: center; font-size: var(--font-size-xs); color: var(--color-text-secondary); flex-wrap: wrap; gap: 8px;">
+                            <span id="admin-storage-detail">Memuat kapasitas disk...</span>
+                            <button type="button" class="btn btn-xs btn-ghost" id="btn-clean-server-storage" style="color: #ef4444; border-color: rgba(239, 68, 68, 0.3); padding: 2px 8px;">
+                                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+                                Bersihkan Sementara
+                            </button>
+                        </div>
                     </div>
                 </div>
 
@@ -1317,10 +1349,10 @@
     <div class="toast-container" id="toast-container"></div>
 
     <!-- Scripts -->
-    <script src="/js/app.js?v=20260921-5"></script>
-    <script src="/js/devices.js?v=20260921-5"></script>
-    <script src="/js/transfer.js?v=20260921-5"></script>
-    <script src="/js/clipboard.js?v=20260921-5"></script>
-    <script src="/js/library.js?v=20260921-5"></script>
+    <script src="/js/app.js?v=20260921-6"></script>
+    <script src="/js/devices.js?v=20260921-6"></script>
+    <script src="/js/transfer.js?v=20260921-6"></script>
+    <script src="/js/clipboard.js?v=20260921-6"></script>
+    <script src="/js/library.js?v=20260921-6"></script>
 </body>
 </html>
